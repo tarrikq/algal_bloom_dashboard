@@ -18,63 +18,65 @@ library(lubridate)
 library(Amelia)
 library(tidyverse)
 library(Hmisc)
+library(neuralnet)
+
 ```
 
 ```{r}
 
-url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Clongitude%2Clatitude%2Cnitrate&time%3E=2021-01-01T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
-
-wiki_url3 <- read_html(url3) # UCLA SOCR Data
-df3 <- as.data.frame(html_table(html_nodes(wiki_url3, "table")[[2]]))
-
-df3 <- df3[-1 , ]
-
-time <- df3$time
-df3 <- subset(df3, select=-c(time))
-df3 <- as.data.frame(sapply(df3, as.numeric))
-df3 <- cbind(time, df3)
-df3$time <- ymd_hms(df3$time )
-
-obs_data_3 <- df3[complete.cases(df3), ] %>%
-  select(c("time","nitrate"))
-
-
-
-
-url4 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
-wiki_url4 <- read_html(url4) # UCLA SOCR Data
-df4 <- as.data.frame(html_table(html_nodes(wiki_url4, "table")[[2]]))
-
-df4 <- df4[-1 , ]
-
-time <- df4$time
-df4 <- subset(df4, select=-c(time))
-df4 <- as.data.frame(sapply(df4, as.numeric))
-df4 <- cbind(time, df4)
-df4$time <- ymd_hms(df4$time )
-
-obs_data <- inner_join(df4, obs_data_3, by='time')
-
-url5 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
-wiki_url5 <- read_html(url5) # UCLA SOCR Data
-df5 <- as.data.frame(html_table(html_nodes(wiki_url5, "table")[[2]]))
-
-df5 <- df5[-1 , ]
-
-time <- df5$time
-df5 <- subset(df5, select=-c(time))
-df5 <- as.data.frame(sapply(df5, as.numeric))
-df5 <- cbind(time, df5)
-df5$time <- ymd_hms(df5$time )
-df5$ammonia <- abs(df5$ammonia)
-df5$phosphate <- abs(df5$phosphate)
-df5$time <- round_date(df5$time, "10 minutes")
-
-obs_data <- inner_join(algae_data, df5, by='time')
+# url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Clongitude%2Clatitude%2Cnitrate&time%3E=2021-01-01T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+# 
+# wiki_url3 <- read_html(url3) # UCLA SOCR Data
+# df3 <- as.data.frame(html_table(html_nodes(wiki_url3, "table")[[2]]))
+# 
+# df3 <- df3[-1 , ]
+# 
+# time <- df3$time
+# df3 <- subset(df3, select=-c(time))
+# df3 <- as.data.frame(sapply(df3, as.numeric))
+# df3 <- cbind(time, df3)
+# df3$time <- ymd_hms(df3$time )
+# 
+# obs_data_3 <- df3[complete.cases(df3), ] %>%
+#   select(c("time","nitrate"))
+# 
+# 
+# 
+# 
+# url4 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+# wiki_url4 <- read_html(url4) # UCLA SOCR Data
+# df4 <- as.data.frame(html_table(html_nodes(wiki_url4, "table")[[2]]))
+# 
+# df4 <- df4[-1 , ]
+# 
+# time <- df4$time
+# df4 <- subset(df4, select=-c(time))
+# df4 <- as.data.frame(sapply(df4, as.numeric))
+# df4 <- cbind(time, df4)
+# df4$time <- ymd_hms(df4$time )
+# 
+# obs_data <- inner_join(df4, obs_data_3, by='time')
+# 
+# url5 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
+# wiki_url5 <- read_html(url5) # UCLA SOCR Data
+# df5 <- as.data.frame(html_table(html_nodes(wiki_url5, "table")[[2]]))
+# 
+# df5 <- df5[-1 , ]
+# 
+# time <- df5$time
+# df5 <- subset(df5, select=-c(time))
+# df5 <- as.data.frame(sapply(df5, as.numeric))
+# df5 <- cbind(time, df5)
+# df5$time <- ymd_hms(df5$time )
+# df5$ammonia <- abs(df5$ammonia)
+# df5$phosphate <- abs(df5$phosphate)
+# df5$time <- round_date(df5$time, "10 minutes")
+# 
+# obs_data <- inner_join(algae_data, df5, by='time')
 ```
 
 ```{r data save}
-write.csv(obs_data, "C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
+#write.csv(obs_data, "C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
 
 
 
@@ -86,6 +88,7 @@ algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_blo
 
 ```
 ```{r summary data}
+algae_sub <- as.data.frame(sapply(algae_sub, abs))
 summary(algae_data)
 
 
@@ -97,7 +100,7 @@ summary(algae_data)
 
 ```{r missing data}
 missmap(algae_data)
-
+algae_data <- algae_data[complete.cases(algae_data), ]
 
 ```
 
@@ -120,78 +123,127 @@ rcorr(as.matrix(algae_sub, method="Spearman"))
 
 ```{r pairs plot}
 set.seed(42)
-algae_sub$danger_level <- ifelse(algae_sub$`bluegreen_algae_conc_(ug/L)` > 0.8 , 1, 0)
-##Setting the color scale
-pl_colorscale = list(c(0.0, '#119dff'),
-                  c(0.5, '#119dff'),
-                  c(0.5, '#ef553b'),
-                  c(1, '#ef553b'))
+
+dims <- dplyr::select_if(algae_sub, is.numeric)
+dims <- purrr::map2(dims, names(dims), ~list(values=.x, label=.y))
+plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE, 
+        diagonal = list(visible = FALSE) ,textangle = 45) %>% 
+  layout( title='<b> Lake Erie water parameter Pairs-Plots </b>')
+
+```
 
 
-axis = list(showline=FALSE,
-            zeroline=FALSE,
-            gridcolor='#ffff',
-            ticklen=4,
-            titlefont=list(size=13))
+```{r pre processing}
+algae_nn <- algae_sub %>%
+  select(-c('bluegreen_algae_conc_(rfu)'))
 
-fig <- algae_sub %>%
-  plot_ly() 
-fig <- fig %>%
-  add_trace(
-    type = 'splom',
-    dimensions = list(
-      list(label='blue green algae concentration', values=~'bluegreen_algae_conc_(ug/l)'),
-      list(label='chlorophyll concentration', values=~'chlorophyll_conc_(kg/m3)'),
-      list(label='oxygen concentration', values=~'oxygen_conc_(kg/m3)'),
-      list(label='temperature', values=~'temp_(K)'),
-      list(label='electrical conductivity', values=~'elec_cond_(s/m)'),
-      list(label='pH', values=~'pH'),
-      list(label='nitrate', values=~'nitrate_(ug/L)'),
-      list(label='ammonia', values=~'ammonia_(ug/L)'),
-      list(label='phosphate', values=~'phosphate_(ug/L)')
-    ),
-    text=~factor(danger_level, labels=c("Low Danger","High Danger")),
-    diagonal=list(visible=F),
-    marker = list(
-      color = ~danger_level,
-      colorscale = pl_colorscale,
-      size = 5,
-      line = list(
-        width = 1,
-        color = 'rgb(230,230,230)'
-      )
-    )
-  ) 
-fig <- fig %>%
-  layout(
-    title = "High and low danger levels across various water quality parameters",
-    hovermode='closest',
-    dragmode = 'select',
-    plot_bgcolor='rgba(240,240,240, 0.95)',
-    xaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4, titlefont=list(size=13)),
-    yaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4, titlefont=list(size=13)),
-    xaxis2=axis,
-    xaxis3=axis,
-    xaxis4=axis,
-    xaxis5=axis,
-    xaxis6=axis,
-    xaxis7=axis,
-    xaxis8=axis,
-    xaxis9=axis,
-    yaxis2=axis,
-    yaxis3=axis,
-    yaxis4=axis,
-    yaxis5=axis,
-    yaxis6=axis,
-    yaxis7=axis,
-    yaxis8=axis,
-    yaxis9=axis
+normalize <- function(x) {
+return((x - min(x)) / (max(x) - min(x)))
+}
+
+algae_norm<-as.data.frame(lapply(algae_nn, normalize))
+
+
+sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.75))
+algae_train <- algae_norm[sub, ]
+algae_test <- algae_norm[-sub, ]
+```
+
+```{r nn}
+algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(10,6))
+plot(algae_model)
+
+```
+
+```{r model accuracy}
+algae_pred <- compute(algae_model, algae_test[, c(1:2, 4:11)])
+pred_results <- algae_pred$net.result
+cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
+```
+
+
+```{r plotting}
+plot_ly() %>%
+  add_markers(x=pred_results, y=algae_test$bluegreen_algae_conc_.ug.L., 
+              name="Data Scatter", type="scatter", mode="markers") %>%
+  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+        line = list(width = 4), name="Ideal Agreement") %>%
+  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+                      round(cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.), 2)),
+           xaxis = list(title="NN (hidden=4) Predictions"),
+           yaxis = list(title="(Normalized) Observed"),
+           legend = list(orientation = 'h'))
+```
+
+```{r classifier}
+
+algae_class <- algae_norm
+
+headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","bluegreen_algae_conc_(ug/L)",
+             "chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
+             "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
+names(algae_class) <- headers
+
+id1 = which(algae_class$`bluegreen_algae_conc_(ug/L)` < 0.1)
+id2 = which(algae_class$`bluegreen_algae_conc_(ug/L)` > 0.2)
+id3 = setdiff(1:nrow(algae_class),union(id1,id2))
+algae_class$`bluegreen_algae_conc_(ug/L)`[id1]=0
+algae_class$`bluegreen_algae_conc_(ug/L)`[id2]=2
+algae_class$`bluegreen_algae_conc_(ug/L)`[id3]=1
+
+
+summary(as.factor(algae_class$`bluegreen_algae_conc_(ug/L)`))
+
+
+```
+
+```{r classifier train and test}
+set.seed(42)
+train = sample(1:nrow(algae_class),0.75*nrow(algae_class))
+algae_tr = algae_class[train,]
+algae_ts = algae_class[-train,]
+train_x = algae_tr[,c(1:2,4:11)]
+train_y = algae_tr[,3]
+colnames(train_x)
+
+test_x = algae_ts[,c(1:2,4:8)]
+test_y = algae_ts[3]
+train_y_ind = model.matrix(~factor(train_y)-1)
+colnames(train_y_ind) = c("Low","Median","High")
+train = cbind(train_x, train_y_ind)
+names(train) <- make.names(names(train))
+
+```
+
+
+```{r NN classifier}
+nn_single = neuralnet(Low+Median+High~ .,
+    data = train,
+    hidden=10,#c(10,8,6),
+    # linear.output=FALSE,
+    # lifesign='full', lifesign.step=5000,
+    threshold = 0.3)
+```
+
+
+```{r}
+pred = function(nn, dat) {
+    # compute uses the trained neural net (nn=nn_single), and 
+    # new testing data (dat=google_ts) to generate predictions (y_hat)
+    # compute returns a list containing: 
+    #     (1) neurons: a list of the neurons' output for each layer of the neural network, and
+    #     (2) net.result: a matrix containing the overall result of the neural network.
+    yhat = compute(nn, dat)$net.result
     
-  )
+    # find the maximum in each row (1) in the net.result matrix
+    # to determine the first occurrence of a specific element in each row (1)
+    # we can use the apply function with which.max
+    yhat = apply(yhat, 1, which.max)-1
+    return(yhat)
+}
 
-fig <- fig %>% style(showupperhalf = F)
+mean(pred(nn_single, algae_ts[,c(1:2,4:11)]) != as.factor(algae_ts[,3]))
 
-fig
-
+table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
 
 ```
