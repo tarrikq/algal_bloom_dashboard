@@ -19,8 +19,15 @@ library(Amelia)
 library(tidyverse)
 library(Hmisc)
 library(neuralnet)
-
+library("keras")
+library(tensorflow)
+library(reticulate)	
 ```
+```{r python}
+py_path = "C:\\Users\\Tarri\\anaconda3\\" 
+use_python(py_path, required = T)	
+```
+
 
 ```{r}
 
@@ -87,8 +94,8 @@ algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_blo
 
 
 ```
+
 ```{r summary data}
-algae_sub <- as.data.frame(sapply(algae_sub, abs))
 summary(algae_data)
 
 
@@ -111,11 +118,13 @@ headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","bl
              "bluegreen_algae_conc_(rfu)","chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
              "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
 names(algae_sub) <- headers
+algae_sub <- as.data.frame(sapply(algae_sub, abs))
 
 ```
 
 
 ```{r correlation}
+
 rcorr(as.matrix(algae_sub, method="Spearman"))
 
 
@@ -150,12 +159,16 @@ algae_test <- algae_norm[-sub, ]
 ```
 
 ```{r nn}
+set.seed(42)
 algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(10,6))
 plot(algae_model)
+
+
 
 ```
 
 ```{r model accuracy}
+set.seed(42)
 algae_pred <- compute(algae_model, algae_test[, c(1:2, 4:11)])
 pred_results <- algae_pred$net.result
 cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
@@ -163,6 +176,7 @@ cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
 
 
 ```{r plotting}
+set.seed(42)
 plot_ly() %>%
   add_markers(x=pred_results, y=algae_test$bluegreen_algae_conc_.ug.L., 
               name="Data Scatter", type="scatter", mode="markers") %>%
@@ -176,7 +190,7 @@ plot_ly() %>%
 ```
 
 ```{r classifier}
-
+set.seed(42)
 algae_class <- algae_norm
 
 headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","bluegreen_algae_conc_(ug/L)",
@@ -217,6 +231,7 @@ names(train) <- make.names(names(train))
 
 
 ```{r NN classifier}
+set.seed(42)
 nn_single = neuralnet(Low+Median+High~ .,
     data = train,
     hidden=10,#c(10,8,6),
@@ -227,6 +242,7 @@ nn_single = neuralnet(Low+Median+High~ .,
 
 
 ```{r}
+set.seed()
 pred = function(nn, dat) {
     # compute uses the trained neural net (nn=nn_single), and 
     # new testing data (dat=google_ts) to generate predictions (y_hat)
@@ -245,5 +261,35 @@ pred = function(nn, dat) {
 mean(pred(nn_single, algae_ts[,c(1:2,4:11)]) != as.factor(algae_ts[,3]))
 
 table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
+
+```
+
+///////////////////////////////////////////////////////////////////////////////////
+```{r deep learning}
+dat2 <- as.matrix(algae_sub)
+dimnames(dat2) <- NULL
+# May be best to avoid normalizing the ordinal variable "ticketcount"
+dat2.norm <- keras::normalize(dat2)
+colnames(dat2.norm) <- headers
+
+# report the summary`
+summary(dat2.norm)
+
+
+
+```
+
+
+```{r }
+train_set_ind <- sample(nrow(dat2.norm), floor(nrow(dat2.norm)*0.8)) # 80:20 plot training:testing
+train_dat2.X <- dat2.norm[train_set_ind, ]
+train_dat2.Y <- algae_sub[train_set_ind , 3]  # Outcome "survived" column:8
+
+test_dat2.X <- dat2.norm[-train_set_ind, ]
+test_dat2.Y <- algae_sub[-train_set_ind , 3]  # Outcome "survived" column:8
+
+# double check the size/dimensions of the training and testing data (predictors and responses)
+dim(train_dat2.X); length(train_dat2.Y); dim(test_dat2.X); length(test_dat2.Y)
+
 
 ```
