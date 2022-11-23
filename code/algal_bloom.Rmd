@@ -103,7 +103,8 @@ summary(algae_data)
 
 
 
-
+# Missing Data
+From the missingness map, we can see that there is very little missing data, and it appears to only be from the ammonia column. Since a very small portion of data is missing, the rows with missing data were removed.
 
 ```{r missing data}
 missmap(algae_data)
@@ -141,8 +142,10 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 
 ```
 
+# Neural Network
 
 ```{r pre processing}
+set.seed(55)
 algae_nn <- algae_sub %>%
   select(-c('bluegreen_algae_conc_(rfu)'))
 
@@ -153,25 +156,28 @@ return((x - min(x)) / (max(x) - min(x)))
 algae_norm<-as.data.frame(lapply(algae_nn, normalize))
 
 
-sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.75))
+sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.80))
 algae_train <- algae_norm[sub, ]
 algae_test <- algae_norm[-sub, ]
+
+
 ```
 
 ```{r nn}
-set.seed(42)
-algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(10,6))
+set.seed(55)
+algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(6 , 4), learningrate = 0.01)
 plot(algae_model)
-
 
 
 ```
 
 ```{r model accuracy}
-set.seed(42)
+set.seed(55)
 algae_pred <- compute(algae_model, algae_test[, c(1:2, 4:11)])
 pred_results <- algae_pred$net.result
 cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
+
+algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_.ug.L., predicted = pred_results)
 ```
 
 
@@ -265,15 +271,20 @@ table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
 ```
 
 ///////////////////////////////////////////////////////////////////////////////////
+
 ```{r deep learning}
 dat2 <- as.matrix(algae_sub)
 dimnames(dat2) <- NULL
+dat2 <- dat2[ , c(1:2 ,5:12)]
+
 # May be best to avoid normalizing the ordinal variable "ticketcount"
 dat2.norm <- keras::normalize(dat2)
-colnames(dat2.norm) <- headers
 
-# report the summary`
-summary(dat2.norm)
+# headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
+#              "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
+# colnames(dat2.norm) <- headers
+
+
 
 
 
@@ -281,15 +292,46 @@ summary(dat2.norm)
 
 
 ```{r }
+set.seed(42)
 train_set_ind <- sample(nrow(dat2.norm), floor(nrow(dat2.norm)*0.8)) # 80:20 plot training:testing
 train_dat2.X <- dat2.norm[train_set_ind, ]
-train_dat2.Y <- algae_sub[train_set_ind , 3]  # Outcome "survived" column:8
+train_dat2.Y <- algae_sub$`bluegreen_algae_conc_(ug/L)`[train_set_ind]  # Outcome "algae concentration" column:3
+
 
 test_dat2.X <- dat2.norm[-train_set_ind, ]
-test_dat2.Y <- algae_sub[-train_set_ind , 3]  # Outcome "survived" column:8
+test_dat2.Y <- algae_sub$`bluegreen_algae_conc_(ug/L)`[-train_set_ind]  # Outcome "survived" column:8
 
 # double check the size/dimensions of the training and testing data (predictors and responses)
 dim(train_dat2.X); length(train_dat2.Y); dim(test_dat2.X); length(test_dat2.Y)
+
+
+```
+
+
+```{r NN }
+model.1 <- keras_model_sequential() 
+
+# Add layers to the model
+model.1 %>% 
+    layer_dense(units = 10, activation = 'relu', input_shape = c(10)) %>% 
+    layer_dense(units = 2, activation = 'softmax')
+
+model.1 %>% compile(
+     loss = 'binary_crossentropy',
+     optimizer = 'adam',
+     metrics = 'accuracy'
+ )
+
+predictions <- predict(model.1, train_dat2.X)
+
+predictions <- keras_predict(model.1,train_dat2.X , batch_size = 32, verbose = 1)
+# track.model.1 <- model.1 %>% fit(
+#      train_dat2.X, 
+#      train_dat2.Y, 
+#      epochs = 200, 
+#      batch_size = 10, 
+#      validation_split = 0.2
+#  )
 
 
 ```
