@@ -22,6 +22,7 @@ library(neuralnet)
 library("keras")
 library(tensorflow)
 library(reticulate)	
+library(caret)
 ```
 ```{r python}
 py_path = "C:\\Users\\Tarri\\anaconda3\\" 
@@ -165,11 +166,13 @@ algae_test <- algae_norm[-sub, ]
 
 ```{r nn}
 set.seed(55)
-algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(6 , 4), learningrate = 0.01)
+algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(6 , 4), learningrate = 0.01, 
+                         err.fct = "sse", act.fct = "logistic", rep=3)
 plot(algae_model)
 
 
 ```
+
 
 ```{r model accuracy}
 set.seed(55)
@@ -178,6 +181,7 @@ pred_results <- algae_pred$net.result
 cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
 
 algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_.ug.L., predicted = pred_results)
+
 ```
 
 
@@ -273,39 +277,79 @@ table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
 ///////////////////////////////////////////////////////////////////////////////////
 
 ```{r deep learning}
-dat2 <- as.matrix(algae_sub)
-dimnames(dat2) <- NULL
-dat2 <- dat2[ , c(1:2 ,5:12)]
+dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_(rfu)','bluegreen_algae_conc_(ug/L)'))
+dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_(ug/L)'))
 
-# May be best to avoid normalizing the ordinal variable "ticketcount"
-dat2.norm <- keras::normalize(dat2)
-
-# headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
-#              "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
-# colnames(dat2.norm) <- headers
+trainIndex <- createDataPartition(algae_sub$`bluegreen_algae_conc_(ug/L)`, p = 0.7,
+                                  list = FALSE,
+                                  times = 1)
 
 
+dl_train_input <- dl_all_input[ trainIndex, ]
+dl_train_output <- dl_all_output[trainIndex, ]
+dl_test_input <- dl_all_input[-trainIndex, ]
+dl_test_output <- dl_all_output[-trainIndex, ]
 
 
+dl_train_norm <- keras::normalize(dl_train)
+dl_test_norm <- keras::normalize(dl_test)
+
+
+build_and_compile_model <- function(norm) {
+  model <- keras_model_sequential() %>%
+    norm() %>%
+    layer_dense(64, activation = 'relu') %>%
+    layer_dense(64, activation = 'relu') %>%
+    layer_dense(1)
+
+  model %>% compile(
+    loss = 'mean_absolute_error',
+    optimizer = optimizer_adam(0.001)
+  )
+
+  model
+}
+
+
+dl_model <- keras_model_sequential() 
+
+# Add layers to the model
+dl_model %>% 
+    layer_dense(units = 10, activation = 'relu', input_shape = c(10)) %>% 
+    layer_dense(units = 6, activation = 'softmax')
+
+dl_model %>% compile(
+     loss = 'mean_squared_error',
+     optimizer = 'adam',
+     metrics = 'accuracy'
+ )
+
+history <- dl_model %>% fit(
+  as.matrix(dl_train_norm),
+  as.matrix(dl_train_output),
+  validation_split = 0.2,
+  verbose = 0,
+  epochs = 100
+)
+
+plot(history)
+
+
+test_results <- dl_model %>% evaluate(
+  as.matrix(dl_test_norm),
+  as.matrix(dl_test_output),
+  verbose = 0
+)
+
+
+test_predictions <- predict(dl_model, as.matrix(dl_test_norm))
+
+ggplot(data.frame(pred = as.numeric(test_predictions), concentration = dl_test_output)) +
+  geom_point(aes(x = pred, y = concentration)) +
+  geom_abline(intercept = 0, slope = 1, color = "blue")
 
 ```
 
-
-```{r }
-set.seed(42)
-train_set_ind <- sample(nrow(dat2.norm), floor(nrow(dat2.norm)*0.8)) # 80:20 plot training:testing
-train_dat2.X <- dat2.norm[train_set_ind, ]
-train_dat2.Y <- algae_sub$`bluegreen_algae_conc_(ug/L)`[train_set_ind]  # Outcome "algae concentration" column:3
-
-
-test_dat2.X <- dat2.norm[-train_set_ind, ]
-test_dat2.Y <- algae_sub$`bluegreen_algae_conc_(ug/L)`[-train_set_ind]  # Outcome "survived" column:8
-
-# double check the size/dimensions of the training and testing data (predictors and responses)
-dim(train_dat2.X); length(train_dat2.Y); dim(test_dat2.X); length(test_dat2.Y)
-
-
-```
 
 
 ```{r NN }
