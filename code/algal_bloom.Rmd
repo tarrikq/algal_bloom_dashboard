@@ -150,17 +150,26 @@ set.seed(55)
 algae_nn <- algae_sub %>%
   select(-c('bluegreen_algae_conc_(rfu)'))
 
-normalize <- function(x) {
-return((x - min(x)) / (max(x) - min(x)))
-}
 
-algae_norm<-as.data.frame(lapply(algae_nn, normalize))
+trainIndex <- 
 
+sub <- createDataPartition(algae_sub$`bluegreen_algae_conc_(ug/L)`, p = 0.7,
+                                  list = FALSE,
+                                  times = 1)
 
-sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.80))
-algae_train <- algae_norm[sub, ]
-algae_test <- algae_norm[-sub, ]
+algae_train <- algae_nn[sub, ] 
+algae_test <- algae_nn[-sub, ]
 
+algae_train_conc <- algae_train %>% select(c('bluegreen_algae_conc_(ug/L)'))
+algae_test_conc <-algae_test %>% select(c('bluegreen_algae_conc_(ug/L)'))
+algae_train <- algae_train %>% select(-c('bluegreen_algae_conc_(ug/L)'))
+algae_test <-algae_test %>% select(-c('bluegreen_algae_conc_(ug/L)'))
+
+algae_train_norm <- keras::normalize(algae_train)
+algae_test_norm <- keras::normalize(algae_test)
+
+algae_train <- cbind(algae_train_conc, algae_train_norm)
+algae_test <- cbind(algae_test_conc, algae_test_norm)
 
 ```
 
@@ -277,6 +286,7 @@ table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
 ///////////////////////////////////////////////////////////////////////////////////
 
 ```{r deep learning}
+set.seed(55)
 dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_(rfu)','bluegreen_algae_conc_(ug/L)'))
 dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_(ug/L)'))
 
@@ -294,88 +304,63 @@ dl_test_output <- dl_all_output[-trainIndex, ]
 dl_train_norm <- keras::normalize(dl_train)
 dl_test_norm <- keras::normalize(dl_test)
 
+dl_train_mat <- as.matrix(dl_train_norm)
+dl_test_mat <- as.matrix(dl_test_norm)
+dl_train_output <- as.matrix(dl_train_output)
+dl_test_output <-as.matrix(dl_test_output)
 
-build_and_compile_model <- function(norm) {
-  model <- keras_model_sequential() %>%
-    norm() %>%
-    layer_dense(64, activation = 'relu') %>%
-    layer_dense(64, activation = 'relu') %>%
-    layer_dense(1)
-
-  model %>% compile(
-    loss = 'mean_absolute_error',
-    optimizer = optimizer_adam(0.001)
-  )
-
-  model
-}
+colnames(dl_train_mat) <- NULL
+colnames(dl_test_mat) <- NULL
+```
 
 
+```{r model build}
+set.seed(55)
 dl_model <- keras_model_sequential() 
 
 # Add layers to the model
 dl_model %>% 
-    layer_dense(units = 10, activation = 'relu', input_shape = c(10)) %>% 
-    layer_dense(units = 6, activation = 'softmax')
+    layer_dense(units = 64, activation = 'softmax', input_shape = c(10)) %>% 
+    layer_dense(units =64, activation = 'softmax') %>%
+    layer_dense(units = 32, activation = 'softmax') %>%
+    layer_dense(units = 1, activation = 'linear')
 
 dl_model %>% compile(
      loss = 'mean_squared_error',
-     optimizer = 'adam',
+     optimizer = 'SGD',
      metrics = 'accuracy'
  )
-
+summary(dl_model)
 history <- dl_model %>% fit(
-  as.matrix(dl_train_norm),
-  as.matrix(dl_train_output),
+  dl_train_mat,
+  dl_train_output,
   validation_split = 0.2,
   verbose = 0,
-  epochs = 100
+  epochs = 200
 )
 
 plot(history)
 
 
 test_results <- dl_model %>% evaluate(
-  as.matrix(dl_test_norm),
-  as.matrix(dl_test_output),
+  dl_test_mat,
+  dl_test_output,
   verbose = 0
 )
+test_results
 
 
-test_predictions <- predict(dl_model, as.matrix(dl_test_norm))
+test_predictions <- predict(dl_model, dl_test_mat)
 
-ggplot(data.frame(pred = as.numeric(test_predictions), concentration = dl_test_output)) +
-  geom_point(aes(x = pred, y = concentration)) +
-  geom_abline(intercept = 0, slope = 1, color = "blue")
+df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
+
+ggplot(df) +
+  geom_point(aes(x = prediction, y = concentration)) 
 
 ```
 
 
 
 ```{r NN }
-model.1 <- keras_model_sequential() 
-
-# Add layers to the model
-model.1 %>% 
-    layer_dense(units = 10, activation = 'relu', input_shape = c(10)) %>% 
-    layer_dense(units = 2, activation = 'softmax')
-
-model.1 %>% compile(
-     loss = 'binary_crossentropy',
-     optimizer = 'adam',
-     metrics = 'accuracy'
- )
-
-predictions <- predict(model.1, train_dat2.X)
-
-predictions <- keras_predict(model.1,train_dat2.X , batch_size = 32, verbose = 1)
-# track.model.1 <- model.1 %>% fit(
-#      train_dat2.X, 
-#      train_dat2.Y, 
-#      epochs = 200, 
-#      batch_size = 10, 
-#      validation_split = 0.2
-#  )
-
 
 ```
