@@ -171,12 +171,14 @@ algae_test_norm <- keras::normalize(algae_test)
 algae_train <- cbind(algae_train_conc, algae_train_norm)
 algae_test <- cbind(algae_test_conc, algae_test_norm)
 
+names(algae_train) <- make.names(names(algae_train))
+names(algae_test) <- make.names(names(algae_test))
+
 ```
 
 ```{r nn}
 set.seed(55)
-algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_norm, hidden= c(6 , 4), learningrate = 0.01, 
-                         err.fct = "sse", act.fct = "logistic", rep=3)
+algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_train, hidden= c(10 , 6))
 plot(algae_model)
 
 
