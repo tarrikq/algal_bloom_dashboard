@@ -23,6 +23,7 @@ library("keras")
 library(tensorflow)
 library(reticulate)	
 library(caret)
+library(Boruta)
 ```
 ```{r python}
 py_path = "C:\\Users\\Tarri\\anaconda3\\" 
@@ -97,8 +98,6 @@ algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_blo
 ```
 
 ```{r summary data}
-summary(algae_data)
-
 
 ```
 
@@ -116,11 +115,13 @@ algae_data <- algae_data[complete.cases(algae_data), ]
 ```{r data sub}
 algae_sub <- algae_data %>%
   select(-c("...1","...2","time","latitude","longitude"))
-headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","bluegreen_algae_conc_(ug/L)",
-             "bluegreen_algae_conc_(rfu)","chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
-             "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
+headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegreen_algae_conc_ug.L",
+             "bluegreen_algae_conc_rfu","chlorophyll_conc_kg.m3","oxygen_conc_kg.m3","temp_K","elec_cond_s.m",
+             "pH","nitrate_ug.L","ammonia_ug.L","phosphate_ug.L")
 names(algae_sub) <- headers
 algae_sub <- as.data.frame(sapply(algae_sub, abs))
+summary(algae_sub)
+
 
 ```
 
@@ -143,42 +144,74 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 
 ```
 
+```{r boruta}
+algae_bor <- algae_sub %>%
+  select(-c('bluegreen_algae_conc_rfu'))
+
+boruta <- Boruta(bluegreen_algae_conc_ug.L~.,data=algae_bor)
+
+plot(boruta, xlab = "", xaxt = "n")
+k <-lapply(1:ncol(boruta$ImpHistory),function(i)
+  boruta$ImpHistory[is.finite(boruta$ImpHistory[,i]),i])
+names(k) <- colnames(boruta$ImpHistory)
+Labels <- sort(sapply(k,median))
+axis(side = 1,las=2,labels = names(Labels),
+       at = 1:ncol(boruta$ImpHistory), cex.axis = 0.7)
+
+
+```
+
+
 # Neural Network
 
 ```{r pre processing}
+algae_nn <- subset(algae_sub, bluegreen_algae_conc_ug.L < 3)
+
 set.seed(55)
-algae_nn <- algae_sub %>%
-  select(-c('bluegreen_algae_conc_(rfu)'))
+# algae_nn <- algae_nn %>%
+#   select(-c('bluegreen_algae_conc_rfu'))
 
 
-trainIndex <- 
 
-sub <- createDataPartition(algae_sub$`bluegreen_algae_conc_(ug/L)`, p = 0.7,
-                                  list = FALSE,
-                                  times = 1)
+normalize <- function(x) {
+return((x - min(x)) / (max(x) - min(x)))
+}
 
-algae_train <- algae_nn[sub, ] 
-algae_test <- algae_nn[-sub, ]
+algae_norm<-as.data.frame(lapply(algae_nn, normalize))
 
-algae_train_conc <- algae_train %>% select(c('bluegreen_algae_conc_(ug/L)'))
-algae_test_conc <-algae_test %>% select(c('bluegreen_algae_conc_(ug/L)'))
-algae_train <- algae_train %>% select(-c('bluegreen_algae_conc_(ug/L)'))
-algae_test <-algae_test %>% select(-c('bluegreen_algae_conc_(ug/L)'))
+sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.75))
 
-algae_train_norm <- keras::normalize(algae_train)
-algae_test_norm <- keras::normalize(algae_test)
 
-algae_train <- cbind(algae_train_conc, algae_train_norm)
-algae_test <- cbind(algae_test_conc, algae_test_norm)
+# sub <- createDataPartition(algae_nn$`bluegreen_algae_conc_ug.L`, p = 0.75,
+#                                    list = FALSE,
+#                            times = 1)
 
-names(algae_train) <- make.names(names(algae_train))
-names(algae_test) <- make.names(names(algae_test))
+algae_train <- algae_norm[sub, ] 
+algae_test <- algae_norm[-sub, ]
+
+#algae_train <- algae_train[order(algae_train$bluegreen_algae_conc_ug.L), ]
+
+
+#algae_train_conc <- algae_train %>% select(c('bluegreen_algae_conc_ug.L'))
+#algae_test_conc <-algae_test %>% select(c('bluegreen_algae_conc_ug.L'))
+#algae_train <- algae_train %>% select(-c('bluegreen_algae_conc_ug.L'))
+#algae_test <-algae_test %>% select(-c('bluegreen_algae_conc_ug.L'))
+
+# algae_train_norm <- keras::normalize(algae_train)
+# algae_test_norm <- keras::normalize(algae_test)
+
+# algae_train <- cbind(algae_train_conc, algae_train_norm)
+# algae_test <- cbind(algae_test_conc, algae_test_norm)
+# 
+# names(algae_train) <- make.names(names(algae_train))
+# names(algae_test) <- make.names(names(algae_test))
 
 ```
 
 ```{r nn}
 set.seed(55)
-algae_model <- neuralnet(~bluegreen_algae_conc_.ug.L.~., data=algae_train, hidden= c(10 , 6))
+algae_model <- neuralnet(bluegreen_algae_conc_ug.L~., data=algae_train, hidden= c(10,6))#,err.fct = 'sse', act.fct = 'logistic')
+
 plot(algae_model)
 
 
@@ -186,12 +219,12 @@ plot(algae_model)
 
 
 ```{r model accuracy}
-set.seed(55)
-algae_pred <- compute(algae_model, algae_test[, c(1:2, 4:11)])
+set.seed(42)
+algae_pred <- compute(algae_model, algae_test[ , c(1:2, 4:12)])
 pred_results <- algae_pred$net.result
-cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.)
+cor(pred_results, algae_test$bluegreen_algae_conc_ug.L)
 
-algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_.ug.L., predicted = pred_results)
+algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_ug.L, predicted = pred_results)
 
 ```
 
@@ -199,7 +232,7 @@ algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_.ug.L., predicte
 ```{r plotting}
 set.seed(42)
 plot_ly() %>%
-  add_markers(x=pred_results, y=algae_test$bluegreen_algae_conc_.ug.L., 
+  add_markers(x=pred_results, y=algae_test$bluegreen_algae_conc_ug.L, 
               name="Data Scatter", type="scatter", mode="markers") %>%
   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
         line = list(width = 4), name="Ideal Agreement") %>%
