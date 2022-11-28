@@ -319,6 +319,8 @@ return((x*(max(dl_all_output$bluegreen_algae_conc_ug.L)-min(dl_all_output$bluegr
 ## Create a data frame for new prediction values
 pred <-as.data.frame(lapply(df, unnormalize))
 
+pred$warning <- ifelse(pred$prediction > 1, "Danger", ifelse( (pred$prediction > 0.6 & pred$prediction <= 1), "Caution", "Safe"))
+
 
 ```
 
