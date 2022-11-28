@@ -33,8 +33,34 @@ use_python(py_path, required = T)
 
 ```{r}
 
-# url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Clongitude%2Clatitude%2Cnitrate&time%3E=2021-01-01T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+# url1 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+# wiki_url1 <- read_html(url1) # UCLA SOCR Data
+# df1 <- as.data.frame(html_table(html_nodes(wiki_url1, "table")[[2]]))
 # 
+# df1 <- df1[-1 , ]
+# 
+# time <- df1$time
+# df1 <- subset(df1, select=-c(time))
+# df1 <- as.data.frame(sapply(df1, as.numeric))
+# df1 <- cbind(time, df1)
+# df1$time <- ymd_hms(df1$time )
+# 
+# url2 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
+# wiki_url2 <- read_html(url2) # UCLA SOCR Data
+# df2 <- as.data.frame(html_table(html_nodes(wiki_url2, "table")[[2]]))
+# 
+# df2 <- df2[-1 , ]
+# 
+# time <- df2$time
+# df2 <- subset(df2, select=-c(time))
+# df2 <- as.data.frame(sapply(df2, as.numeric))
+# df2 <- cbind(time, df2)
+# df2$time <- ymd_hms(df2$time )
+# df2$time <- round_date(df2$time, "10 minutes")
+# 
+# obs_data <- inner_join(df1, df2, by='time')
+# 
+# url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Cphycocyanin_fluorescence&time%3E=2022-07-21T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
 # wiki_url3 <- read_html(url3) # UCLA SOCR Data
 # df3 <- as.data.frame(html_table(html_nodes(wiki_url3, "table")[[2]]))
 # 
@@ -46,13 +72,9 @@ use_python(py_path, required = T)
 # df3 <- cbind(time, df3)
 # df3$time <- ymd_hms(df3$time )
 # 
-# obs_data_3 <- df3[complete.cases(df3), ] %>%
-#   select(c("time","nitrate"))
+# obs_data <- left_join(obs_data, df3, by='time')
 # 
-# 
-# 
-# 
-# url4 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+# url4 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_162.htmlTable?time%2Cnitrate&time%3E=2022-07-21T00%3A00%3A00Z"
 # wiki_url4 <- read_html(url4) # UCLA SOCR Data
 # df4 <- as.data.frame(html_table(html_nodes(wiki_url4, "table")[[2]]))
 # 
@@ -64,24 +86,7 @@ use_python(py_path, required = T)
 # df4 <- cbind(time, df4)
 # df4$time <- ymd_hms(df4$time )
 # 
-# obs_data <- inner_join(df4, obs_data_3, by='time')
-# 
-# url5 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
-# wiki_url5 <- read_html(url5) # UCLA SOCR Data
-# df5 <- as.data.frame(html_table(html_nodes(wiki_url5, "table")[[2]]))
-# 
-# df5 <- df5[-1 , ]
-# 
-# time <- df5$time
-# df5 <- subset(df5, select=-c(time))
-# df5 <- as.data.frame(sapply(df5, as.numeric))
-# df5 <- cbind(time, df5)
-# df5$time <- ymd_hms(df5$time )
-# df5$ammonia <- abs(df5$ammonia)
-# df5$phosphate <- abs(df5$phosphate)
-# df5$time <- round_date(df5$time, "10 minutes")
-# 
-# obs_data <- inner_join(algae_data, df5, by='time')
+# obs_data <- left_join(obs_data, df4, by='time')
 ```
 
 ```{r data save}
@@ -93,7 +98,6 @@ use_python(py_path, required = T)
 
 ```{r read in data}
 algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
-
 
 ```
 
@@ -107,21 +111,26 @@ algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_blo
 From the missingness map, we can see that there is very little missing data, and it appears to only be from the ammonia column. Since a very small portion of data is missing, the rows with missing data were removed.
 
 ```{r missing data}
-missmap(algae_data)
-algae_data <- algae_data[complete.cases(algae_data), ]
+algae_data[algae_data == 0] <- NA
 
+missmap(algae_data)
+#algae_data <- algae_data[complete.cases(algae_data), ]
 ```
 
 ```{r data sub}
 algae_sub <- algae_data %>%
-  select(-c("...1","...2","time","latitude","longitude"))
+  select(-c("...1","time","latitude","longitude"))
 headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegreen_algae_conc_ug.L",
              "bluegreen_algae_conc_rfu","chlorophyll_conc_kg.m3","oxygen_conc_kg.m3","temp_K","elec_cond_s.m",
-             "pH","nitrate_ug.L","ammonia_ug.L","phosphate_ug.L")
+             "pH","ammonia_ug.L","phosphate_ug.L", "phycocayanin_flour_rfu","nitrate_ug.L")
 names(algae_sub) <- headers
 algae_sub <- as.data.frame(sapply(algae_sub, abs))
-summary(algae_sub)
 
+algae_data1 <- amelia(algae_sub, m=5)
+algae_sub <- algae_data1$imputations$imp1
+algae_sub <- as.data.frame(sapply(algae_sub, abs))
+
+summary(algae_sub)
 
 ```
 
@@ -165,11 +174,10 @@ axis(side = 1,las=2,labels = names(Labels),
 # Neural Network
 
 ```{r pre processing}
-algae_nn <- subset(algae_sub, bluegreen_algae_conc_ug.L < 3)
+# algae_nn <- subset(algae_sub, bluegreen_algae_conc_ug.L < 3)
 
-set.seed(55)
-# algae_nn <- algae_nn %>%
-#   select(-c('bluegreen_algae_conc_rfu'))
+algae_nn <- algae_sub %>%
+  select(-c('bluegreen_algae_conc_rfu'))
 
 
 
@@ -178,7 +186,7 @@ return((x - min(x)) / (max(x) - min(x)))
 }
 
 algae_norm<-as.data.frame(lapply(algae_nn, normalize))
-
+set.seed(55)
 sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.75))
 
 
@@ -210,7 +218,7 @@ algae_test <- algae_norm[-sub, ]
 
 ```{r nn}
 set.seed(55)
-algae_model <- neuralnet(bluegreen_algae_conc_ug.L~., data=algae_train, hidden= c(10,6))#,err.fct = 'sse', act.fct = 'logistic')
+algae_model <- neuralnet(bluegreen_algae_conc_ug.L~., data=algae_train, hidden= c(10,6),err.fct = 'sse', act.fct = 'logistic')
 
 plot(algae_model)
 
@@ -219,8 +227,8 @@ plot(algae_model)
 
 
 ```{r model accuracy}
-set.seed(42)
-algae_pred <- compute(algae_model, algae_test[ , c(1:2, 4:12)])
+set.seed(55)
+algae_pred <- compute(algae_model, algae_test[ , c(1:2, 4:length(algae_test))])
 pred_results <- algae_pred$net.result
 cor(pred_results, algae_test$bluegreen_algae_conc_ug.L)
 
@@ -322,48 +330,59 @@ table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
 
 ```{r deep learning}
 set.seed(55)
-dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_(rfu)','bluegreen_algae_conc_(ug/L)'))
-dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_(ug/L)'))
+## take a subset of the original data which does not include the predicted variable 
+## Also take a subset of just the predicted variable
+dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_ug.L','bluegreen_algae_conc_rfu'))
+dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_ug.L'))
 
-trainIndex <- createDataPartition(algae_sub$`bluegreen_algae_conc_(ug/L)`, p = 0.7,
-                                  list = FALSE,
-                                  times = 1)
+## Function to normalize all the columns in the dataset
+normalize <- function(x) {
+return((x - min(x)) / (max(x) - min(x)))
+}
 
+## Normalizes both the input and output dataset
+dl_norm_input <-as.data.frame(lapply(dl_all_input, normalize))
+dl_norm_output <-as.data.frame(lapply(dl_all_output, normalize))
 
-dl_train_input <- dl_all_input[ trainIndex, ]
-dl_train_output <- dl_all_output[trainIndex, ]
-dl_test_input <- dl_all_input[-trainIndex, ]
-dl_test_output <- dl_all_output[-trainIndex, ]
+## Randomly samples the indexes to create training and testing data
+sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
 
+## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
+dl_train_input <- dl_norm_input[sub, ] 
+dl_train_output <- dl_norm_output[sub, ]
+dl_test_input <- dl_norm_input[-sub, ]
+dl_test_output <- dl_norm_output[-sub, ]
 
-dl_train_norm <- keras::normalize(dl_train)
-dl_test_norm <- keras::normalize(dl_test)
-
-dl_train_mat <- as.matrix(dl_train_norm)
-dl_test_mat <- as.matrix(dl_test_norm)
+## Turn all training and testing data into matrices
+dl_train_mat <- as.matrix(dl_train_input)
+dl_test_mat <- as.matrix(dl_test_input)
 dl_train_output <- as.matrix(dl_train_output)
 dl_test_output <-as.matrix(dl_test_output)
 
+## Remove column names
 colnames(dl_train_mat) <- NULL
 colnames(dl_test_mat) <- NULL
 ```
 
 
 ```{r model build}
-set.seed(55)
 dl_model <- keras_model_sequential() 
-
+act <- 'relu'
+opt <- 'Adam'
+loss <- 'mse'
+met <- 'mse'
 # Add layers to the model
+set.seed(55)
 dl_model %>% 
-    layer_dense(units = 64, activation = 'softmax', input_shape = c(10)) %>% 
-    layer_dense(units =64, activation = 'softmax') %>%
-    layer_dense(units = 32, activation = 'softmax') %>%
+    layer_dense(units = 10, activation = act, input_shape = length(dl_train_input)) %>% 
+    layer_dense(units = 120, activation = act) %>%
+    layer_dropout(rate = 0.3) %>% 
     layer_dense(units = 1, activation = 'linear')
 
 dl_model %>% compile(
-     loss = 'mean_squared_error',
-     optimizer = 'SGD',
-     metrics = 'accuracy'
+     loss = loss,
+     optimizer = opt,
+     metrics = met
  )
 summary(dl_model)
 history <- dl_model %>% fit(
@@ -389,8 +408,19 @@ test_predictions <- predict(dl_model, dl_test_mat)
 
 df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
 
-ggplot(df) +
-  geom_point(aes(x = prediction, y = concentration)) 
+plot_ly() %>%
+  add_markers(data=df, x=~prediction, y=~concentration, 
+              name="Data Scatter", type="scatter", mode="markers") %>%
+  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+        line = list(width = 4), name="Ideal Agreement") %>%
+  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+                      round(cor(df$prediction,df$concentration ), 2)),
+           xaxis = list(title="NN (hidden=4) Predictions"),
+           yaxis = list(title="(Normalized) Observed"),
+           legend = list(orientation = 'h'))
+
+cor(df$prediction, df$concentration)
+
 
 ```
 
