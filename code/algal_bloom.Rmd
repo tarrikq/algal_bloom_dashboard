@@ -96,15 +96,12 @@ use_python(py_path, required = T)
 
 ```
 
+# Summary of Initial Data
+
 ```{r read in data}
 algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
-
+summary(algae_data)
 ```
-
-```{r summary data}
-
-```
-
 
 
 # Missing Data
@@ -117,7 +114,9 @@ missmap(algae_data)
 #algae_data <- algae_data[complete.cases(algae_data), ]
 ```
 
+# Data Imputation
 ```{r data sub}
+
 algae_sub <- algae_data %>%
   select(-c("...1","time","latitude","longitude"))
 headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegreen_algae_conc_ug.L",
@@ -134,6 +133,7 @@ summary(algae_sub)
 
 ```
 
+# Correlation
 
 ```{r correlation}
 
@@ -141,6 +141,8 @@ rcorr(as.matrix(algae_sub, method="Spearman"))
 
 
 ```
+
+# Pairs Plot
 
 ```{r pairs plot}
 set.seed(42)
@@ -153,6 +155,7 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 
 ```
 
+# Feature Selection
 ```{r boruta}
 algae_bor <- algae_sub %>%
   select(-c('bluegreen_algae_conc_rfu'))
@@ -172,161 +175,6 @@ axis(side = 1,las=2,labels = names(Labels),
 
 
 # Neural Network
-
-```{r pre processing}
-# algae_nn <- subset(algae_sub, bluegreen_algae_conc_ug.L < 3)
-
-algae_nn <- algae_sub %>%
-  select(-c('bluegreen_algae_conc_rfu'))
-
-
-
-normalize <- function(x) {
-return((x - min(x)) / (max(x) - min(x)))
-}
-
-algae_norm<-as.data.frame(lapply(algae_nn, normalize))
-set.seed(55)
-sub <- sample(nrow(algae_norm), floor(nrow(algae_norm)*0.75))
-
-
-# sub <- createDataPartition(algae_nn$`bluegreen_algae_conc_ug.L`, p = 0.75,
-#                                    list = FALSE,
-#                            times = 1)
-
-algae_train <- algae_norm[sub, ] 
-algae_test <- algae_norm[-sub, ]
-
-#algae_train <- algae_train[order(algae_train$bluegreen_algae_conc_ug.L), ]
-
-
-#algae_train_conc <- algae_train %>% select(c('bluegreen_algae_conc_ug.L'))
-#algae_test_conc <-algae_test %>% select(c('bluegreen_algae_conc_ug.L'))
-#algae_train <- algae_train %>% select(-c('bluegreen_algae_conc_ug.L'))
-#algae_test <-algae_test %>% select(-c('bluegreen_algae_conc_ug.L'))
-
-# algae_train_norm <- keras::normalize(algae_train)
-# algae_test_norm <- keras::normalize(algae_test)
-
-# algae_train <- cbind(algae_train_conc, algae_train_norm)
-# algae_test <- cbind(algae_test_conc, algae_test_norm)
-# 
-# names(algae_train) <- make.names(names(algae_train))
-# names(algae_test) <- make.names(names(algae_test))
-
-```
-
-```{r nn}
-set.seed(55)
-algae_model <- neuralnet(bluegreen_algae_conc_ug.L~., data=algae_train, hidden= c(10,6),err.fct = 'sse', act.fct = 'logistic')
-
-plot(algae_model)
-
-
-```
-
-
-```{r model accuracy}
-set.seed(55)
-algae_pred <- compute(algae_model, algae_test[ , c(1:2, 4:length(algae_test))])
-pred_results <- algae_pred$net.result
-cor(pred_results, algae_test$bluegreen_algae_conc_ug.L)
-
-algae_df <- data.frame(actual = algae_test$bluegreen_algae_conc_ug.L, predicted = pred_results)
-
-```
-
-
-```{r plotting}
-set.seed(42)
-plot_ly() %>%
-  add_markers(x=pred_results, y=algae_test$bluegreen_algae_conc_ug.L, 
-              name="Data Scatter", type="scatter", mode="markers") %>%
-  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
-        line = list(width = 4), name="Ideal Agreement") %>%
-  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
-                      round(cor(pred_results, algae_test$bluegreen_algae_conc_.ug.L.), 2)),
-           xaxis = list(title="NN (hidden=4) Predictions"),
-           yaxis = list(title="(Normalized) Observed"),
-           legend = list(orientation = 'h'))
-```
-
-```{r classifier}
-set.seed(42)
-algae_class <- algae_norm
-
-headers <- c("chlorophyll_flourescence_(rfu)","oxygen_saturation_(fraction)","bluegreen_algae_conc_(ug/L)",
-             "chlorophyll_conc_(kg/m3)","oxygen_conc_(kg/m3)","temp_(K)","elec_cond_(s/m)",
-             "pH","nitrate_(ug/L)","ammonia_(ug/L)","phosphate_(ug/L)")
-names(algae_class) <- headers
-
-id1 = which(algae_class$`bluegreen_algae_conc_(ug/L)` < 0.1)
-id2 = which(algae_class$`bluegreen_algae_conc_(ug/L)` > 0.2)
-id3 = setdiff(1:nrow(algae_class),union(id1,id2))
-algae_class$`bluegreen_algae_conc_(ug/L)`[id1]=0
-algae_class$`bluegreen_algae_conc_(ug/L)`[id2]=2
-algae_class$`bluegreen_algae_conc_(ug/L)`[id3]=1
-
-
-summary(as.factor(algae_class$`bluegreen_algae_conc_(ug/L)`))
-
-
-```
-
-```{r classifier train and test}
-set.seed(42)
-train = sample(1:nrow(algae_class),0.75*nrow(algae_class))
-algae_tr = algae_class[train,]
-algae_ts = algae_class[-train,]
-train_x = algae_tr[,c(1:2,4:11)]
-train_y = algae_tr[,3]
-colnames(train_x)
-
-test_x = algae_ts[,c(1:2,4:8)]
-test_y = algae_ts[3]
-train_y_ind = model.matrix(~factor(train_y)-1)
-colnames(train_y_ind) = c("Low","Median","High")
-train = cbind(train_x, train_y_ind)
-names(train) <- make.names(names(train))
-
-```
-
-
-```{r NN classifier}
-set.seed(42)
-nn_single = neuralnet(Low+Median+High~ .,
-    data = train,
-    hidden=10,#c(10,8,6),
-    # linear.output=FALSE,
-    # lifesign='full', lifesign.step=5000,
-    threshold = 0.3)
-```
-
-
-```{r}
-set.seed()
-pred = function(nn, dat) {
-    # compute uses the trained neural net (nn=nn_single), and 
-    # new testing data (dat=google_ts) to generate predictions (y_hat)
-    # compute returns a list containing: 
-    #     (1) neurons: a list of the neurons' output for each layer of the neural network, and
-    #     (2) net.result: a matrix containing the overall result of the neural network.
-    yhat = compute(nn, dat)$net.result
-    
-    # find the maximum in each row (1) in the net.result matrix
-    # to determine the first occurrence of a specific element in each row (1)
-    # we can use the apply function with which.max
-    yhat = apply(yhat, 1, which.max)-1
-    return(yhat)
-}
-
-mean(pred(nn_single, algae_ts[,c(1:2,4:11)]) != as.factor(algae_ts[,3]))
-
-table(pred(nn_single, algae_ts[,c(1:2,4:11)]), as.factor(algae_ts[,3]))
-
-```
-
-///////////////////////////////////////////////////////////////////////////////////
 
 ```{r deep learning}
 set.seed(55)
@@ -349,9 +197,10 @@ sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
 
 ## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
 dl_train_input <- dl_norm_input[sub, ] 
-dl_train_output <- dl_norm_output[sub, ]
+dl_train_output <-dl_norm_output[sub, ]
 dl_test_input <- dl_norm_input[-sub, ]
-dl_test_output <- dl_norm_output[-sub, ]
+dl_test_output <-dl_norm_output[-sub, ]
+
 
 ## Turn all training and testing data into matrices
 dl_train_mat <- as.matrix(dl_train_input)
@@ -385,6 +234,7 @@ dl_model %>% compile(
      metrics = met
  )
 summary(dl_model)
+
 history <- dl_model %>% fit(
   dl_train_mat,
   dl_train_output,
@@ -407,7 +257,7 @@ test_results
 test_predictions <- predict(dl_model, dl_test_mat)
 
 df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
-
+colnames(df) <- c("prediction","concentration")
 plot_ly() %>%
   add_markers(data=df, x=~prediction, y=~concentration, 
               name="Data Scatter", type="scatter", mode="markers") %>%
@@ -424,8 +274,51 @@ cor(df$prediction, df$concentration)
 
 ```
 
+```{r model save}
+#save_model_hdf5(dl_model, "C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model.hdf5")
+```
+
 
 
 ```{r NN }
+model = load_model_hdf5('C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model.hdf5')
+```
+
+```{r }
+
+test_results <- model %>% evaluate(
+  dl_test_mat,
+  dl_test_output,
+  verbose = 0
+)
+test_results
+
+
+test_predictions <- predict(model, dl_test_mat)
+
+df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
+
+plot_ly() %>%
+  add_markers(data=df, x=~prediction, y=~concentration, 
+              name="Data Scatter", type="scatter", mode="markers") %>%
+  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+        line = list(width = 4), name="Ideal Agreement") %>%
+  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+                      round(cor(df$prediction,df$concentration ), 2)),
+           xaxis = list(title="NN (hidden=4) Predictions"),
+           yaxis = list(title="(Normalized) Observed"),
+           legend = list(orientation = 'h'))
+```
+
+```{r naive Bayes}
+## Function to return concentration to its pre normalized value
+unnormalize <- function(x) {
+return((x*(max(dl_all_output$bluegreen_algae_conc_ug.L)-min(dl_all_output$bluegreen_algae_conc_ug.L))+min(dl_all_output$bluegreen_algae_conc_ug.L)))
+}
+
+## Create a data frame for new prediction values
+pred <-as.data.frame(lapply(df, unnormalize))
+
 
 ```
+
