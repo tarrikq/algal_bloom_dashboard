@@ -1,15 +1,43 @@
 ---
-title: "algal_bloom"
-author: "Tarrik Quneibi"
-date: "2022-11-14"
-output: html_document
+title: "Final Report"
+subtitle: "<h2><u>Data Science and Predictive Analytics (HS650)</u></h2>"
+author: "<h3>Tarrik Quneibi</h3>"
+date: "`r format(Sys.time(), '%B %Y')`"
+output:
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    code_folding: show
+    self_contained: yes
 ---
+
+ * Fall 2022, DSPA (HS650)
+ * SID: 1236 
+ * UMich E-mail: tarrikq@umich.edu
+ * I certify that the following paper represents my own independent work and conforms with the guidelines of academic honesty described in the     UMich student handbook.
+ * Remember that students are allowed and encouraged to discuss, on a conceptual level, the problems with your class mates, however, this can      not involve the exchange of actual code, printouts, solutions, e-mails or other explicit electronic or paper handouts.
+
+Outline of problem
+ * Include the regular HW project cover page. Start with a one paragraph abstract, followed by an intro/background of the problem, methods, results, discussion/conclusion and acknowledgments, references, in that order. Clearly state the problem you have chosen to investigate. List the resources you used to come up with the project and reference all sources you used to complete the project.
+ * Clearly state your hypotheses, prior to interrogating the data.
+ * Use statistical techniques from the list of techniques we have discussed in the course to convey whether or not there is statistical evidence in support of your original hypotheses.
+ * Explicitly state your approach to answer your research hypotheses. Write all formulas/tests/statistics you need.
+ * Interpret your statistical (numerical) results in a lay back language. Write conclusions and discussions at the end of your report and acknowledge outside help.  *  * Describe how this project can be extended in the future.
+ * One, two or three people can work on a project as a team. If people team up, everyone must contribute equally to the project and all members must submit separate copies of the project, with their names on top (the names of all team members should be on all submissions). Expectations of team projects are higher.
+ * It's strongly recommended that you design your study, implement your analytic protocol, conduct that modeling, package and report the findings using RMD e-notebook.
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries}
+```{r libraries, message=FALSE, warning=FALSE, echo=FALSE}
 library(readr)
 library(rvest)
 library(plotly)
@@ -24,14 +52,15 @@ library(tensorflow)
 library(reticulate)	
 library(caret)
 library(Boruta)
+library(kableExtra)
 ```
-```{r python}
+```{r python, message=FALSE, warning=FALSE, echo=FALSE}
 py_path = "C:\\Users\\Tarri\\anaconda3\\" 
 use_python(py_path, required = T)	
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
 # url1 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
 # wiki_url1 <- read_html(url1) # UCLA SOCR Data
@@ -89,62 +118,96 @@ use_python(py_path, required = T)
 # obs_data <- left_join(obs_data, df4, by='time')
 ```
 
-```{r data save}
+```{r data save, message=FALSE, warning=FALSE, echo=FALSE}
 #write.csv(obs_data, "C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
 
 
 
 ```
 
-# Summary of Initial Data
+# Abstract
 
-```{r read in data}
+# Background
+In the past decade, Lake Erie has seen high concentrations of cyanobactera, or bluegreen algae. A Severity index was created to rank the algal blooms that occur each year, with the highest severities occuring in 2011 and 2015 with 10 and 10.5 respectively. Not all of the causes of the algal blooms have been determined, however, through research many causes have been identified. These include nutrient-rich water from waste water treatment plants, farm fields and fertilized lawns, invasive species, and warm shallow water in the lake. Furthermore, scientist consider nitrogen in the form of nitrate, and phosphorus to be the main culprit in bluegreen algae growth. (Dean, 2022)
+
+To reduce the risk of harmful algal blooms, the stats of Michigan has planned to focus on reducing phosphorus loads from waste water treatment plants, and agricultural sources in the River Raisin and Maumee River Watersheds. Furthermore, forming collaborative partnerships to provide assistance to farmers and promote conservation practices. Currently local and state focus is on reducing the growth of harmful algae, but implementation of new policy takes time. (Dean, 2022)
+
+To assist in research several buoys were placed in Lake Erie which take multiple water quality parameters that report to research labs throughout the area. Several of these labs also include field sampling data of physicochemical properties along with bluegreen algae concentrations. Using this data, a predictive model can be trained to predict harmful algal bloom concentrations and determine if the concentration is harmful to human and enviromental health.
+
+# Methods
+## Data Extraction
+Data were pulled into rstudio by reading html tables using the rvest package from the ERDDAP scientific database. This database houses data for water quality parameters provided from buoys, field sampling, and laboratory tests. Data were pulled for the year of 2022, although due to time matching, the data within the time periods from August to November were used. 
+
+The water quality parameters were chosen based on availablity and significance. Some important parameters of note are chlorophyll mass and flourescense, dissolved oxygen saturation mass and fractional, and phycocyanin flourescence. Looking further into these parameters, chlorophyll is used by bluegreen algae to collect photosynthetically active light and therefore may be important in predicting algae concentration (Robert A. Andersen, n.d.). Dissolved oxygen has been known to be depleted during periods of high algal bloom growth which can affect the growth of aquatic plants and animals (Ting-ting Wu, 2015). finally, Phycocyanin is a non-toxic, water-soluble pigment protein from microalgae that exhibits antioxidant, anti-inflammatory, hepatoprotective, and neuroprotective effects (Morais, 2018).
+
+## Missing Data
+
+Since the dataset is about 1000 observations, and the predictive model will require large amounts of data to train, imputation was used rather than removing the columns containing missing data. The Amelia package was used to impute the missing data with 5 imputations. The imputed datasets were then averaged to find the mean imputed values. The Amelia package imputes data by using the expectation maximization algorithm with bootstrapping. Bootstrapping is a method of inferring results for a population from results found on a collection of smaller random samples of that population, using replacement during the sampling process. This algorithm works by computing the expected value of the log likelihood function with respect to the conditional distribution of Y given X using the parameter estimates of the previous iteration. This is shown as:
+#' $$Q( \theta | \theta^{(t)} ) = E_{Y | X, \theta^{(t)} }[ log 	
+#' \left ( L(\theta | X , Y ) \right ];$$	
+For the maximization step, the expectation is maximized before being used again in the expectation equation. The maximization equations is shown as:
+# $$\theta^{(t+1)}=\arg\max_{\theta}Q(\theta|\theta^{(t)}).$$	
+
+Amelia will create copies of the dataset with new imputed values. The number of copies created will depend on the value for "m" entered. The copy datasets can then be averaged to determine a mean and variance for the imputed values. 
+
+
+```{r read in data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
-summary(algae_data)
+algae_data[ ,3:17] <- as.data.frame(sapply(algae_data[ ,3:17], abs))
+
+kable(summary(algae_data), "html", caption="Table 1. Initial Water Quality Summary Statistics") %>%
+    kable_styling() %>%
+    scroll_box(width = "100%", height = "500px")
+
 ```
 
 
-# Missing Data
-From the missingness map, we can see that there is very little missing data, and it appears to only be from the ammonia column. Since a very small portion of data is missing, the rows with missing data were removed.
 
-```{r missing data}
+From Table 1, there appears to be missing data in three of the columns. From the missingness map, we can see that there is only a small amount of missing data with the majority of it being in the nitrate data. To train a predictive model the missing data will need to be either removed or imputed. 
+
+```{r missing data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data[algae_data == 0] <- NA
 
 missmap(algae_data)
 #algae_data <- algae_data[complete.cases(algae_data), ]
 ```
 
-# Data Imputation
-```{r data sub}
+```{r data imputation, message=FALSE, warning=FALSE, echo=FALSE}
 
 algae_sub <- algae_data %>%
   select(-c("...1","time","latitude","longitude"))
 headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegreen_algae_conc_ug.L",
              "bluegreen_algae_conc_rfu","chlorophyll_conc_kg.m3","oxygen_conc_kg.m3","temp_K","elec_cond_s.m",
              "pH","ammonia_ug.L","phosphate_ug.L", "phycocayanin_flour_rfu","nitrate_ug.L")
+
 names(algae_sub) <- headers
-algae_sub <- as.data.frame(sapply(algae_sub, abs))
-
+algae_sub <- as.data.frame(algae_sub)
 algae_data1 <- amelia(algae_sub, m=5)
-algae_sub <- algae_data1$imputations$imp1
+
+algae_sub <- (algae_data1$imputations$imp1+algae_data1$imputations$imp2+algae_data1$imputations$imp3+algae_data1$imputations$imp4+algae_data1$imputations$imp5)/5
 algae_sub <- as.data.frame(sapply(algae_sub, abs))
 
-summary(algae_sub)
+kable(summary(algae_sub), "html", caption="Table 2. Imputed Water Quality Summary") %>%
+    kable_styling() %>%
+    scroll_box(width = "100%", height = "500px")
+
+
 
 ```
 
 # Correlation
 
-```{r correlation}
+```{r correlation, message=FALSE, warning=FALSE, echo=FALSE}
 
-rcorr(as.matrix(algae_sub, method="Spearman"))
+
+correlation <- rcorr(as.matrix(algae_sub, method="Spearman"))
 
 
 ```
 
 # Pairs Plot
 
-```{r pairs plot}
+```{r pairs plot, message=FALSE, warning=FALSE, echo=FALSE}
 set.seed(42)
 
 dims <- dplyr::select_if(algae_sub, is.numeric)
@@ -156,7 +219,7 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 ```
 
 # Feature Selection
-```{r boruta}
+```{r boruta, message=FALSE, warning=FALSE, echo=FALSE}
 algae_bor <- algae_sub %>%
   select(-c('bluegreen_algae_conc_rfu'))
 
@@ -176,115 +239,115 @@ axis(side = 1,las=2,labels = names(Labels),
 
 # Neural Network
 
-```{r deep learning}
-set.seed(55)
-## take a subset of the original data which does not include the predicted variable 
-## Also take a subset of just the predicted variable
-dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_ug.L','bluegreen_algae_conc_rfu'))
-dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_ug.L'))
+```{r deep learning, message=FALSE, warning=FALSE, echo=FALSE}
+ set.seed(55)
+ ## take a subset of the original data which does not include the predicted variable
+ ## Also take a subset of just the predicted variable
+ dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_ug.L','bluegreen_algae_conc_rfu'))
+ dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_ug.L'))
 
-## Function to normalize all the columns in the dataset
-normalize <- function(x) {
-return((x - min(x)) / (max(x) - min(x)))
-}
+ ## Function to normalize all the columns in the dataset
+ normalize <- function(x) {
+ return((x - min(x)) / (max(x) - min(x)))
+ }
 
-## Normalizes both the input and output dataset
-dl_norm_input <-as.data.frame(lapply(dl_all_input, normalize))
-dl_norm_output <-as.data.frame(lapply(dl_all_output, normalize))
+ ## Normalizes both the input and output dataset
+ dl_norm_input <-as.data.frame(lapply(dl_all_input, normalize))
+ dl_norm_output <-as.data.frame(lapply(dl_all_output, normalize))
 
-## Randomly samples the indexes to create training and testing data
-sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
+ ## Randomly samples the indexes to create training and testing data
+ sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
 
-## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
-dl_train_input <- dl_norm_input[sub, ] 
-dl_train_output <-dl_norm_output[sub, ]
-dl_test_input <- dl_norm_input[-sub, ]
-dl_test_output <-dl_norm_output[-sub, ]
+ ## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
+ dl_train_input <- dl_norm_input[sub, ]
+ dl_train_output <-dl_norm_output[sub, ]
+ dl_test_input <- dl_norm_input[-sub, ]
+ dl_test_output <-dl_norm_output[-sub, ]
 
 
-## Turn all training and testing data into matrices
-dl_train_mat <- as.matrix(dl_train_input)
-dl_test_mat <- as.matrix(dl_test_input)
-dl_train_output <- as.matrix(dl_train_output)
-dl_test_output <-as.matrix(dl_test_output)
+ ## Turn all training and testing data into matrices
+ dl_train_mat <- as.matrix(dl_train_input)
+ dl_test_mat <- as.matrix(dl_test_input)
+ dl_train_output <- as.matrix(dl_train_output)
+ dl_test_output <-as.matrix(dl_test_output)
 
-## Remove column names
-colnames(dl_train_mat) <- NULL
-colnames(dl_test_mat) <- NULL
+ ## Remove column names
+ colnames(dl_train_mat) <- NULL
+ colnames(dl_test_mat) <- NULL
+```
+ 
+
+```{r model build, message=FALSE, warning=FALSE, echo=FALSE}
+# dl_model <- keras_model_sequential() 
+# act <- 'relu'
+# opt <- 'Adam'
+# loss <- 'mse'
+# met <- 'mse'
+# # Add layers to the model
+# set.seed(55)
+# dl_model %>% 
+#     layer_dense(units = 10, activation = act, input_shape = length(dl_train_input)) %>% 
+#     layer_dense(units = 120, activation = act) %>%
+#     layer_dropout(rate = 0.3) %>% 
+#     layer_dense(units = 1, activation = 'linear')
+# 
+# dl_model %>% compile(
+#      loss = loss,
+#      optimizer = opt,
+#      metrics = met
+#  )
+# summary(dl_model)
+# 
+# history <- dl_model %>% fit(
+#   dl_train_mat,
+#   dl_train_output,
+#   validation_split = 0.2,
+#   verbose = 0,
+#   epochs = 200
+# )
+# 
+# plot(history)
+# 
+# 
+# test_results <- dl_model %>% evaluate(
+#   dl_test_mat,
+#   dl_test_output,
+#   verbose = 0
+# )
+# test_results
+# 
+# 
+# test_predictions <- predict(dl_model, dl_test_mat)
+# 
+# df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
+# colnames(df) <- c("prediction","concentration")
+# plot_ly() %>%
+#   add_markers(data=df, x=~prediction, y=~concentration, 
+#               name="Data Scatter", type="scatter", mode="markers") %>%
+#   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+#         line = list(width = 4), name="Ideal Agreement") %>%
+#   layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+#                       round(cor(df$prediction,df$concentration ), 2)),
+#            xaxis = list(title="NN (hidden=4) Predictions"),
+#            yaxis = list(title="(Normalized) Observed"),
+#            legend = list(orientation = 'h'))
+# 
+# cor(df$prediction, df$concentration)
+# 
+# 
 ```
 
-
-```{r model build}
-dl_model <- keras_model_sequential() 
-act <- 'relu'
-opt <- 'Adam'
-loss <- 'mse'
-met <- 'mse'
-# Add layers to the model
-set.seed(55)
-dl_model %>% 
-    layer_dense(units = 10, activation = act, input_shape = length(dl_train_input)) %>% 
-    layer_dense(units = 120, activation = act) %>%
-    layer_dropout(rate = 0.3) %>% 
-    layer_dense(units = 1, activation = 'linear')
-
-dl_model %>% compile(
-     loss = loss,
-     optimizer = opt,
-     metrics = met
- )
-summary(dl_model)
-
-history <- dl_model %>% fit(
-  dl_train_mat,
-  dl_train_output,
-  validation_split = 0.2,
-  verbose = 0,
-  epochs = 200
-)
-
-plot(history)
-
-
-test_results <- dl_model %>% evaluate(
-  dl_test_mat,
-  dl_test_output,
-  verbose = 0
-)
-test_results
-
-
-test_predictions <- predict(dl_model, dl_test_mat)
-
-df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
-colnames(df) <- c("prediction","concentration")
-plot_ly() %>%
-  add_markers(data=df, x=~prediction, y=~concentration, 
-              name="Data Scatter", type="scatter", mode="markers") %>%
-  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
-        line = list(width = 4), name="Ideal Agreement") %>%
-  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
-                      round(cor(df$prediction,df$concentration ), 2)),
-           xaxis = list(title="NN (hidden=4) Predictions"),
-           yaxis = list(title="(Normalized) Observed"),
-           legend = list(orientation = 'h'))
-
-cor(df$prediction, df$concentration)
-
-
-```
-
-```{r model save}
+```{r model save, message=FALSE, warning=FALSE, echo=FALSE}
 #save_model_hdf5(dl_model, "C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model.hdf5")
 ```
 
 
 
-```{r NN }
+```{r NN , message=FALSE, warning=FALSE, echo=FALSE}
 model = load_model_hdf5('C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model.hdf5')
 ```
 
-```{r }
+```{r , message=FALSE, warning=FALSE, echo=FALSE}
 
 test_results <- model %>% evaluate(
   dl_test_mat,
@@ -310,7 +373,7 @@ plot_ly() %>%
            legend = list(orientation = 'h'))
 ```
 
-```{r naive Bayes}
+```{r categorical, message=FALSE, warning=FALSE, echo=FALSE}
 ## Function to return concentration to its pre normalized value
 unnormalize <- function(x) {
 return((x*(max(dl_all_output$bluegreen_algae_conc_ug.L)-min(dl_all_output$bluegreen_algae_conc_ug.L))+min(dl_all_output$bluegreen_algae_conc_ug.L)))
@@ -323,4 +386,6 @@ pred$warning <- ifelse(pred$prediction > 1, "Danger", ifelse( (pred$prediction >
 
 
 ```
+
+# References
 
