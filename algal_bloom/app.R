@@ -28,13 +28,13 @@ model = load_model_hdf5('C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_d
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("Harmful Algal Bloom Predicion"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
           h3("Help Text"),
-          helpText(""),
+          helpText("This model was trained using the following water quality parameters:"),
         
         
           fileInput("file", h3("Choose CSV file"))
@@ -47,7 +47,6 @@ ui <- fluidPage(
           
         ),
 
-        # Show a plot of the generated distribution
         mainPanel(
 
           
@@ -63,18 +62,23 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+  
   output$contents <- renderTable({
+    
     file <- input$file1
     ext <- tools::file_ext(file$datapath)
     
     req(file)
     validate(need(ext == "csv", "Please upload a csv file"))
     
-    read.csv(file$datapath, header = input$header)
+    df <- read.csv(file$datapath, header = input$header)
+    
     normalize <- function(x) {
       return((x - min(x)) / (max(x) - min(x)))
     }
     
+    df <- as.data.frame(sapply(df, normalize))
+    print(df)
     
   ## Function to normalize all the columns in the dataset
 
