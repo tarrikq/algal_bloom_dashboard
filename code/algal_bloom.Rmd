@@ -47,13 +47,17 @@ library(Amelia)
 library(tidyverse)
 library(Hmisc)
 library(neuralnet)
-library("keras")
+library(keras)
 library(tensorflow)
 library(reticulate)	
 library(caret)
 library(Boruta)
 library(kableExtra)
+library(finalfit)
+library(deepviz)
+library(magrittr)
 ```
+
 ```{r python, message=FALSE, warning=FALSE, echo=FALSE}
 py_path = "C:\\Users\\Tarri\\anaconda3\\" 
 use_python(py_path, required = T)	
@@ -167,9 +171,7 @@ From Table 1, there appears to be missing data in three of the columns. From the
 
 ```{r missing data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data[algae_data == 0] <- NA
-
-missmap(algae_data)
-#algae_data <- algae_data[complete.cases(algae_data), ]
+algae_data %>% missing_plot()
 ```
 
 ```{r data imputation, message=FALSE, warning=FALSE, echo=FALSE}
@@ -182,7 +184,7 @@ headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegr
 
 names(algae_sub) <- headers
 algae_sub <- as.data.frame(algae_sub)
-algae_data1 <- amelia(algae_sub, m=5)
+capture.output(algae_data1 <- amelia(algae_sub, m=5))
 
 algae_sub <- (algae_data1$imputations$imp1+algae_data1$imputations$imp2+algae_data1$imputations$imp3+algae_data1$imputations$imp4+algae_data1$imputations$imp5)/5
 algae_sub <- as.data.frame(sapply(algae_sub, abs))
@@ -274,6 +276,9 @@ axis(side = 1,las=2,labels = names(Labels),
  ## Remove column names
  colnames(dl_train_mat) <- NULL
  colnames(dl_test_mat) <- NULL
+
+
+
 ```
  
 
@@ -368,7 +373,7 @@ plot_ly() %>%
         line = list(width = 4), name="Ideal Agreement") %>%
   layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
                       round(cor(df$prediction,df$concentration ), 2)),
-           xaxis = list(title="NN (hidden=4) Predictions"),
+           xaxis = list(title="(Normalized) NN Predictions"),
            yaxis = list(title="(Normalized) Observed"),
            legend = list(orientation = 'h'))
 ```
@@ -382,8 +387,18 @@ return((x*(max(dl_all_output$bluegreen_algae_conc_ug.L)-min(dl_all_output$bluegr
 ## Create a data frame for new prediction values
 pred <-as.data.frame(lapply(df, unnormalize))
 
-pred$warning <- ifelse(pred$prediction > 1, "Danger", ifelse( (pred$prediction > 0.6 & pred$prediction <= 1), "Caution", "Safe"))
+pred$warning_pred <- ifelse(pred$prediction > 1, "Danger", ifelse( (pred$prediction > 0.6 & pred$prediction <= 1), "Caution", "Safe"))
+pred$warning_obs <- ifelse(pred$concentration > 1, "Danger", ifelse( (pred$concentration > 0.6 & pred$concentration <= 1), "Caution", "Safe"))
 
+p <- ggplot(pred) +
+  geom_density(aes(x=prediction, fill="Predicted"), alpha=0.5)+
+  geom_density(aes(x=concentration,fill="Observed"), alpha=0.5)+
+  labs(x="Concentration of bluegreen algae (ug/L)", title = "Observed concentration vs. predicted concentration")
+
+table(pred[3:4])
+ggplotly(p)
+
+plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
 ```
 
