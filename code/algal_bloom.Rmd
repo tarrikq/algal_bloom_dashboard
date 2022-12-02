@@ -66,64 +66,99 @@ use_python(py_path, required = T)
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-# url1 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
-# wiki_url1 <- read_html(url1) # UCLA SOCR Data
-# df1 <- as.data.frame(html_table(html_nodes(wiki_url1, "table")[[2]]))
-# 
-# df1 <- df1[-1 , ]
-# 
-# time <- df1$time
-# df1 <- subset(df1, select=-c(time))
-# df1 <- as.data.frame(sapply(df1, as.numeric))
-# df1 <- cbind(time, df1)
-# df1$time <- ymd_hms(df1$time )
-# 
-# url2 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
-# wiki_url2 <- read_html(url2) # UCLA SOCR Data
-# df2 <- as.data.frame(html_table(html_nodes(wiki_url2, "table")[[2]]))
-# 
-# df2 <- df2[-1 , ]
-# 
-# time <- df2$time
-# df2 <- subset(df2, select=-c(time))
-# df2 <- as.data.frame(sapply(df2, as.numeric))
-# df2 <- cbind(time, df2)
-# df2$time <- ymd_hms(df2$time )
-# df2$time <- round_date(df2$time, "10 minutes")
-# 
-# obs_data <- inner_join(df1, df2, by='time')
-# 
-# url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Cphycocyanin_fluorescence&time%3E=2022-07-21T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
-# wiki_url3 <- read_html(url3) # UCLA SOCR Data
-# df3 <- as.data.frame(html_table(html_nodes(wiki_url3, "table")[[2]]))
-# 
-# df3 <- df3[-1 , ]
-# 
-# time <- df3$time
-# df3 <- subset(df3, select=-c(time))
-# df3 <- as.data.frame(sapply(df3, as.numeric))
-# df3 <- cbind(time, df3)
-# df3$time <- ymd_hms(df3$time )
-# 
-# obs_data <- left_join(obs_data, df3, by='time')
-# 
-# url4 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_162.htmlTable?time%2Cnitrate&time%3E=2022-07-21T00%3A00%3A00Z"
-# wiki_url4 <- read_html(url4) # UCLA SOCR Data
-# df4 <- as.data.frame(html_table(html_nodes(wiki_url4, "table")[[2]]))
-# 
-# df4 <- df4[-1 , ]
-# 
-# time <- df4$time
-# df4 <- subset(df4, select=-c(time))
-# df4 <- as.data.frame(sapply(df4, as.numeric))
-# df4 <- cbind(time, df4)
-# df4$time <- ymd_hms(df4$time )
-# 
-# obs_data <- left_join(obs_data, df4, by='time')
+url1 <-"https://seagull-erddap.glos.org/erddap/tabledap/obs_22.htmlTable?time%2Clongitude%2Clatitude%2Cchlorophyll_fluorescence%2Cfractional_saturation_of_oxygen_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water%2Cmass_concentration_of_blue_green_algae_in_sea_water_rfu%2Cmass_concentration_of_chlorophyll_in_sea_water%2Cmass_concentration_of_oxygen_in_sea_water%2Csea_surface_temperature%2Csea_water_electrical_conductivity%2Csea_water_ph_reported_on_total_scale&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+wiki_url1 <- read_html(url1) # UCLA SOCR Data
+df1 <- as.data.frame(html_table(html_nodes(wiki_url1, "table")[[2]]))
+
+df1 <- df1[-1 , ]
+
+time <- df1$time
+df1 <- subset(df1, select=-c(time))
+df1 <- as.data.frame(sapply(df1, as.numeric))
+df1 <- cbind(time, df1)
+df1$time <- ymd_hms(df1$time )
+
+url2 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_121.htmlTable?time%2Cammonia%2Cphosphate&time%3E=2022-07-25T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z&phosphate!=NaN"
+wiki_url2 <- read_html(url2) # UCLA SOCR Data
+df2 <- as.data.frame(html_table(html_nodes(wiki_url2, "table")[[2]]))
+
+df2 <- df2[-1 , ]
+
+time <- df2$time
+df2 <- subset(df2, select=-c(time))
+df2 <- as.data.frame(sapply(df2, as.numeric))
+df2 <- cbind(time, df2)
+df2$time <- ymd_hms(df2$time )
+df2$time <- round_date(df2$time, "10 minutes")
+
+obs_data <- inner_join(df1, df2, by='time')
+
+# Pull phycocain flourescence
+url3 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Cphycocyanin_fluorescence&time%3E=2022-07-21T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+wiki_url3 <- read_html(url3) # UCLA SOCR Data
+df3 <- as.data.frame(html_table(html_nodes(wiki_url3, "table")[[2]]))
+
+df3 <- df3[-1 , ]
+
+time <- df3$time
+df3 <- subset(df3, select=-c(time))
+df3 <- as.data.frame(sapply(df3, as.numeric))
+df3 <- cbind(time, df3)
+df3$time <- ymd_hms(df3$time )
+
+obs_data <- left_join(obs_data, df3, by='time')
+
+## Pulls some nitrate data
+url4 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_163.htmlTable?time%2Cnitrate&time%3E=2022-08-04T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+wiki_url4 <- read_html(url4) # UCLA SOCR Data
+df4 <- as.data.frame(html_table(html_nodes(wiki_url4, "table")[[2]]))
+
+df4 <- df4[-1 , ]
+
+time <- df4$time
+df4 <- subset(df4, select=-c(time))
+df4 <- as.data.frame(sapply(df4, as.numeric))
+df4 <- cbind(time, df4)
+df4$time <- ymd_hms(df4$time )
+
+
+## Pulls the rest of the nitrate data
+url5 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Cnitrate&time%3E=2022-08-04T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+wiki_url5 <- read_html(url5) # UCLA SOCR Data
+df5 <- as.data.frame(html_table(html_nodes(wiki_url5, "table")[[2]]))
+
+df5 <- df5[-1 , ]
+
+time <- df5$time
+df5 <- subset(df5, select=-c(time))
+df5 <- as.data.frame(sapply(df5, as.numeric))
+df5 <- cbind(time, df5)
+df5$time <- ymd_hms(df5$time )
+
+url6 <- "https://seagull-erddap.glos.org/erddap/tabledap/obs_117.htmlTable?time%2Cnitrate&time%3E=2022-08-04T00%3A00%3A00Z&time%3C=2022-11-01T00%3A00%3A00Z"
+wiki_url6 <- read_html(url6) # UCLA SOCR Data
+df6 <- as.data.frame(html_table(html_nodes(wiki_url6, "table")[[2]]))
+
+df6 <- df5[-1 , ]
+
+time <- df6$time
+df6 <- subset(df6, select=-c(time))
+df6 <- as.data.frame(sapply(df6, as.numeric))
+df6 <- cbind(time, df6)
+df6$time <- ymd_hms(df6$time )
+
+nitrate <- inner_join(df4, df5, by="time")
+nitrate <- inner_join(nitrate, df6, by="time")
+nitrate$nitrate.y[3316:10860] <- nitrate$nitrate.x[3316:10860]
+nitrate <- nitrate %>% select(c("time","nitrate.y"))
+
+obs_data <- left_join(obs_data, nitrate, by='time')
+
+missmap(obs_data)
 ```
 
 ```{r data save, message=FALSE, warning=FALSE, echo=FALSE}
-#write.csv(obs_data, "C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
+write.csv(obs_data, "C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
 
 
 
@@ -171,6 +206,10 @@ From Table 1, there appears to be missing data in three of the columns. From the
 
 ```{r missing data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data[algae_data == 0] <- NA
+
+algae_data[529:629,17] <- NA
+
+
 algae_data %>% missing_plot()
 ```
 
@@ -184,7 +223,7 @@ headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegr
 
 names(algae_sub) <- headers
 algae_sub <- as.data.frame(algae_sub)
-capture.output(algae_data1 <- amelia(algae_sub, m=5))
+algae_data1 <- amelia(algae_sub, m=5, p2s=0)
 
 algae_sub <- (algae_data1$imputations$imp1+algae_data1$imputations$imp2+algae_data1$imputations$imp3+algae_data1$imputations$imp4+algae_data1$imputations$imp5)/5
 algae_sub <- as.data.frame(sapply(algae_sub, abs))
@@ -193,8 +232,12 @@ kable(summary(algae_sub), "html", caption="Table 2. Imputed Water Quality Summar
     kable_styling() %>%
     scroll_box(width = "100%", height = "500px")
 
+df <- data.frame(val = t, pred = algae_sub$nitrate_ug.L[529:629])
 
-
+ggplot(df) +
+  geom_density(aes(x=pred, fill="Predicted"), alpha=0.5)+
+  geom_density(aes(x=nitrate,fill="Observed"), alpha=0.5)+
+  labs(x="Concentration of bluegreen algae (ug/L)", title = "Observed concentration vs. predicted concentration")
 ```
 
 # Correlation
