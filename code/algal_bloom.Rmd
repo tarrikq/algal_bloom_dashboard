@@ -182,13 +182,25 @@ A correlation and p-value matrix was generated for each feature by using the rco
 Each features importance was calculated using the Boruta package. Boruta is a feature selection function which utilizes random forest classification to determine the importance of each feature. This is done by first creating "shadow features" by copying and randomizing each original feature before appending to the original dataframe. This gives a dataframe twice the size of the original. Following this, boruta builds a Random Forest Classifier on the new feature space which determines their importance using a statistical test, known as the Z-Score.This algorithm checks if the original feature has higher importance than the maximum importance of shadow features, $(Z-Score_{original} > Z-Score_{Max\, shadow})$. If the importance is found to be higher then the feature is recorded as important, otherwise it is recorded as unimportant.
 
 ## Normalization
-To ensure better optimization in the deep learning neural network, the data was pre-processed by normalization. By normalizing all of the data to values between 0 and 1, the deep learning network will be less likely to get trapped in local extrema caused by highly flucuating values. Instead, the algorithm will have shallower extrema and should be able to converge easier. For normalization, the following function was built, $(x - min(x)) / (max(x) - min(x))$.
+To ensure better optimization in the deep learning neural network, the data was pre-processed by normalization. By normalizing all of the data to values between 0 and 1, the deep learning network will be less likely to get trapped in local extrema caused by highly flucuating values. Instead, the algorithm will have shallower extrema and should be able to converge easier. For normalization, the following function was built, $x_{norm}=\left( \frac{x - min(x))}{(max(x) - min(x)} \right)$.
 
 ## Training and Testing Data
 Using the normalized data, training and testing data was created by taking random samples in a 90:10 split. This higher split was used due to using 20% of the training data as a validation step within the neural network. The output variable (bluegreen algae concentration) was left out of the training and testing data, but each (train/test) output was stored for cross validation.
 
 ## Deep Learning Neural Network
+### Model creation
+The Deep learning neural network was built using the python wrapped Keras package. The network consisted of an input layer of 10 nodes (layer 1), followed by a hidden layer of 10 nodes (layer 2), a hidden layer of 120 nodes (layer 3), a dropout layer with a 30% rate (layer 4), and finally a layer with a single output node (layer 5). In each layer, the neural network utilizes an activation function which decides whether a neuron should be activated or not by calculating the weighted sum and further adding bias to it. Beginning with layer 2, the activation functions for each layer are relu, relu, and linear. The relu function stands for "rectified linear unit" and is a piecewise linear function that will output the input directly if it is positive, otherwise, it will output zero. The linear function, also known as "no activation" is where the activation is proportional to the input and simply returns the value it was given. The dropout layer is used to approximate training a large number of neural networks with different architectures in parallel. During training, a number of layer outputs are randomly ignored which has the effect of making the layer be treated like a layer with a different number of nodes and connectivity to the prior layer. This process attempts to create situations where network layers co-adapt to correct mistakes from prior layers, in turn making the model more robust.
 
+### Model Compiling
+The model was compiled using the mean-squared error for both the loss function as well as the metric. The mean-squared error is given by $MSE=\left( \frac{1}{n} \right)\sum_{i=1}^{n}(Y_i-Y'_i)^2$, where n is the number of data points, $Y_i$ is the observed value, and $Y'_i$ is the predicted value. This function measures error in statistical models by using the average squared difference between observed and predicted values which tells how close a regression line is to a set of points. Furthermore, Adam was chosen as the optimizer for the model which is a replacement optimization algorithm for stochastic gradient descent. Adam combines properties of the AdaGrad and RMSProp algorithms to create an algorithm that can handle sparse gradients on noisy data.
+
+### Model Fitting
+After compliation, the model was fitted using the normalized training data input along with the normalized training data output (bluegreen algae concentration) to be used for validation. A 20% validation split was created from this dataset and validated at each of the 200 epochs. 
+
+### Model Testing
+Using the normalized testing data created earlier, the model was evaluated and the correlation to the original data was plotted to show the linearity. The predicted and observed data were then categorized by the danger level of algae (safe, caution, danger) which was decided to be (x<0.6, 0.6<x<1, x>1). These values are based on hazardous levels of the toxins produced by the algae. A confusion matrix was created to determine the accuracy of the classification. 
+
+# Results
 
 ```{r read in data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
@@ -356,7 +368,8 @@ axis(side = 1,las=2,labels = names(Labels),
 
 
 ```
- 
+
+
 
 ```{r model build, message=FALSE, warning=FALSE, echo=FALSE}
 # dl_model <- keras_model_sequential()
