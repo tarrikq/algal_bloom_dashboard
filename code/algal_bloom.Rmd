@@ -206,6 +206,10 @@ Using the normalized testing data created earlier, the model was evaluated and t
 algae_data <- read_csv("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\algal_bloom_dashboard\\data\\algae_data.csv")
 algae_data[ ,3:17] <- as.data.frame(sapply(algae_data[ ,3:17], abs))
 
+algae_data$nitrate <- algae_data$nitrate/1000
+algae_data$ammonia <- algae_data$ammonia/1000
+algae_data$phosphate <- algae_data$phosphate/1000
+
 kable(summary(algae_data), "html", caption="Table 1. Initial Water Quality Summary Statistics") %>%
     kable_styling() %>%
     scroll_box(width = "100%", height = "500px")
@@ -213,14 +217,16 @@ kable(summary(algae_data), "html", caption="Table 1. Initial Water Quality Summa
 ```
 
 
-
-From Table 1, there appears to be missing data in three of the columns. From the missingness map, we can see that there is only a small amount of missing data with the majority of it being in the nitrate data. To train a predictive model the missing data will need to be either removed or imputed. 
+## Missing Data
+From Table 1, there appears to be missing data in some of the columns. From Figure 1, we can see that there is only a small amount (~1%) of missing data with the majority of it being in the nitrate data. The columns appear to have a mixture of missing at random and missing not at random data. Since the neural network requires large amounts of data to train, imputation was used rather than removing those observations. However, since some of the data is missing not at random a validation step was added to ensure the distribution of the imputed data followed the original data.
 
 ```{r missing data, message=FALSE, warning=FALSE, echo=FALSE}
 algae_data[algae_data == 0] <- NA
 
-algae_data %>% missing_plot()
+algae_data %>% missing_plot(title="Figure 1. Missing observations across each feature")
 ```
+
+The data was imputed with five copies of the data. The variance in the imputed data sets was accounted for after running each copy through the model rather than averaging the data sets together beforehand. Table 2 shows one of the imputed data sets. Note that there are no longer missing values and the mean of the imputed features is still roughly the same (within 5%).
 
 ```{r data imputation, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -232,10 +238,6 @@ headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegr
 
 names(algae_sub) <- headers
 algae_sub <- as.data.frame(algae_sub)
-
-algae_sub$nitrate_mg.L <- algae_sub$nitrate_mg.L/1000
-algae_sub$ammonia_mg.L <- algae_sub$ammonia_mg.L/1000
-algae_sub$phosphate_mg.L <- algae_sub$phosphate_mg.L/1000
 
 algae_data1 <- amelia(algae_sub, m=5, p2s=0)
 
@@ -249,13 +251,14 @@ kable(summary(algae_sub), "html", caption="Table 2. Imputed Water Quality Summar
     scroll_box(width = "100%", height = "500px")
 ```
 
+To validate the imputation, the density of the imputed data sets and the original data were plotted to assess any differences. Figure 2 shows that for each of the features that required imputation the distribution is almost an exact match. This shows that the imputation was successful so the missing not at random data can still be utilized rather than removed.
 
-```{r checking imputation}
+```{r checking imputation, warning=FALSE, message=FALSE, echo=FALSE}
 imp_list <- list(
-  data.frame(initial = algae_data$nitrate/1000, imputed = algae_sub$nitrate_mg.L),
+  data.frame(initial = algae_data$nitrate, imputed = algae_sub$nitrate_mg.L),
   data.frame(initial = algae_data$phycocyanin_fluorescence, imputed = algae_sub$phycocayanin_flour_rfu),
-  data.frame(initial = algae_data$phosphate/1000, imputed = algae_sub$phosphate_mg.L),
-  data.frame(initial = algae_data$ammonia/1000, imputed = algae_sub$ammonia_mg.L)
+  data.frame(initial = algae_data$phosphate, imputed = algae_sub$phosphate_mg.L),
+  data.frame(initial = algae_data$ammonia, imputed = algae_sub$ammonia_mg.L)
 
 )
 
@@ -272,13 +275,36 @@ ggplotly(p)
 lapply(imp_list, plotting)
 ```
 
-# Correlation
+## Correlation
 
 ```{r correlation, message=FALSE, warning=FALSE, echo=FALSE}
 
 
 correlation <- rcorr(as.matrix(algae_sub, method="Spearman"))
+# Extract the correlation coefficients
+correlation$r
+# Extract p-values
+correlation$P
 
+res <- cor(algae_sub)
+
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+cor_table <- flattenCorrMatrix(correlation$r, correlation$P)
+
+kable(cor_table, "html", caption="Table 1. Initial Water Quality Summary Statistics") %>%
+    kable_styling() %>%
+    scroll_box(width = "100%", height = "500px")
+
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
 
 ```
 
@@ -286,8 +312,13 @@ correlation <- rcorr(as.matrix(algae_sub, method="Spearman"))
 
 ```{r pairs plot, message=FALSE, warning=FALSE, echo=FALSE}
 set.seed(42)
+pair <- algae_sub %>% select(-c("bluegreen_algae_conc_rfu","oxygen_saturation_fraction","chlorophyll_flourescence_rfu"))
+headers <- c("algae_ug.L","chlorophyll_kg.m3","oxygen_kg.m3","temp_K","elec_cond_s.m",
+             "pH","ammonia_mg.L","phosphate_mg.L", "phycocayanin_rfu","nitrate_mg.L")
 
-dims <- dplyr::select_if(algae_sub, is.numeric)
+names(pair) <- headers
+
+dims <- dplyr::select_if(pair, is.numeric)
 dims <- purrr::map2(dims, names(dims), ~list(values=.x, label=.y))
 plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE, 
         diagonal = list(visible = FALSE) ,textangle = 45) %>% 
@@ -295,14 +326,7 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 
 ```
 
-```{r boxplot}
 
-box <- algae_sub %>% select(c("nitrate_mg.L","phosphate_mg.L","ammonia_mg.L"))
-
-ggplot(stack(box), aes(x = ind, y = values)) +
-  geom_boxplot()
-
-```
 
 # Feature Selection
 ```{r boruta, message=FALSE, warning=FALSE, echo=FALSE}
@@ -457,7 +481,7 @@ df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_t
 
 plot_ly() %>%
   add_markers(data=df, x=~prediction, y=~concentration, 
-              name="Data Scatter", type="scatter", mode="markers") %>%
+              name="Data Scatter", type="scatter", mode="markers",size=2) %>%
   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
         line = list(width = 4), name="Ideal Agreement") %>%
   layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
@@ -485,6 +509,7 @@ p <- ggplot(pred) +
   labs(x="Concentration of bluegreen algae (ug/L)", title = "Observed concentration vs. predicted concentration")
 
 table(pred[3:4])
+
 ggplotly(p)
 
 plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
