@@ -276,6 +276,7 @@ lapply(imp_list, plotting)
 ```
 
 ## Correlation
+From literature, it has been found that high levels of nitrogen, phosphorus, and oxygen can cause high levels of algal blooms. However, Figure *___* shows that bluegreen algae concentration only has high correlation with chlorophyll. The high correlation with chlorophyll is likely due to it's use by bluegreen algae when performing photosynthesis. Due to this process, we would expect high levels of chlorophyll when there are high levels of bluegreen algae. Regarding the low nutrient correlations, one possibility could be due to algae ingesting different nitrogen and phosphorus compounds than phosphate, nitrate, and ammonia. If these compounds must be reduced to form compounds which can be injested by the algae, then these compounds would not show correlation to algae concentration in their current form.
 
 ```{r correlation, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -309,7 +310,7 @@ corrplot(res, type = "upper", order = "hclust",
 ```
 
 # Pairs Plot
-
+The linearity of each feature was access in Figure *___*. The linearity is reflective of the correlation plot showing some linearity between algae concentration and chlorophyll concentration, as well as parameters such as oxygen saturation and temperature. 
 ```{r pairs plot, message=FALSE, warning=FALSE, echo=FALSE}
 set.seed(42)
 pair <- algae_sub %>% select(-c("bluegreen_algae_conc_rfu","oxygen_saturation_fraction","chlorophyll_flourescence_rfu"))
@@ -328,7 +329,9 @@ plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE
 
 
 
-# Feature Selection
+## Feature Selection
+Due to the low levels of correlation and linearity, Boruta was used to access the importance of each feature in the dataset. Figure *___* shows the results of the Boruta feature selection, which found that all of the features in the dataset are important in the prediction in bluegreen algae growth. However, as found before, chlorophyll is the most important feature in the data set, with ammonia being the least important. Although as stated previously, this may be due to algae using reduced forms of the nutrient compounds. If nutrient data for various forms of each nutrient were available, then the analysis would be more robust.
+
 ```{r boruta, message=FALSE, warning=FALSE, echo=FALSE}
 algae_bor <- algae_sub %>%
   select(-c('bluegreen_algae_conc_rfu'))
@@ -347,7 +350,10 @@ axis(side = 1,las=2,labels = names(Labels),
 ```
 
 
-# Neural Network
+# Deep Learning Neural Network
+With the data normalized, the training and testing split was made (90:10) and the model was compiled with the Adam optimizer and mean squared error loss function. The results in Figure *___* show that the model predicts the testing data with 87% accuracy.Since the model appears to be over fitting, a confusion matrix was generated to determine if the predictions follow a conservative pattern. Three bins were created based on the safety level of the algae concentration, "safe" refers to concentrations under 0.6 ppb, "caution" for concentrations between 0.6-0.8 ppb, and "danger" for concentrations above 0.8 ppb. As shown in Table *___*, the model is skewed to the more conservative estimate which predicts danger or caution when conditions are actually safe. Although this is not ideal, the conservative estimate is favored over the alternative which would predict safe conditions when it is actually dangerous. 
+
+Figure *___* shows the distribution of the predicted and observed bluegreen algae concentrations. The predicted results have a higher density around the mean and slightly higher concentration values. Further optimization of the model is need to reduce the over fitting, although 87% accuracy is still an acceptable result.
 
 ```{r deep learning, message=FALSE, warning=FALSE, echo=FALSE}
  set.seed(55)
@@ -479,7 +485,7 @@ test_predictions <- predict(model, dl_test_mat)
 
 df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
 
-plot_ly() %>%
+p1 <- plot_ly() %>%
   add_markers(data=df, x=~prediction, y=~concentration, 
               name="Data Scatter", type="scatter", mode="markers",size=2) %>%
   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
@@ -510,11 +516,13 @@ p <- ggplot(pred) +
 
 table(pred[3:4])
 
-ggplotly(p)
+p2 <- ggplotly(p)
 
 plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
 ```
+
+# Conclusion
 
 # References
 
