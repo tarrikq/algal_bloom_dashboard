@@ -56,6 +56,7 @@ library(kableExtra)
 library(finalfit)
 library(deepviz)
 library(magrittr)
+library(corrplot)
 ```
 
 ```{r python, message=FALSE, warning=FALSE, echo=FALSE}
@@ -170,10 +171,10 @@ The water quality parameters were chosen based on availablity and significance. 
 
 ## Missing Data
 
-Since the dataset is about 1000 observations, and the predictive model will require large amounts of data to train, imputation was used rather than removing the columns containing missing data. The Amelia package was used to impute the missing data. The Amelia package imputes data by using the expectation maximization algorithm with bootstrapping. Bootstrapping is a method of inferring results for a population from results found on a collection of smaller random samples of that population, using replacement during the sampling process. This algorithm works by computing the expected value of the log likelihood function with respect to the conditional distribution of Y given X using the parameter estimates of the previous iteration. This is shown as:
- $Q( \theta | \theta^{(t)} ) = E_{Y | X, \theta^{(t)} }[ log 	\left ( L(\theta | X , Y ) \right ])$
-For the maximization step, the expectation is maximized before being used again in the expectation equation. The maximization equations is shown as:
- $(\theta^{(t+1)}=\arg\max_{\theta}Q(\theta|\theta^{(t)}).)$
+Since the dataset is about 1000 observations, and the predictive model will require large amounts of data to train, imputation was used rather than removing the columns containing missing data. The Amelia package was used to impute the missing data. The Amelia package imputes data by using the expectation maximization algorithm with bootstrapping. Bootstrapping is a method of inferring results for a population from results found on a collection of smaller random samples of that population, using replacement during the sampling process. This algorithm works by computing the expected value of the log likelihood function with respect to the conditional distribution of Y given X using the parameter estimates of the previous iteration. This is shown as:    
+$$Q( \theta | \theta^{(t)} ) = E_{Y | X, \theta^{(t)} }[ log 	\left ( L(\theta | X , Y ) \right ])$$                  
+For the maximization step, the expectation is maximized before being used again in the expectation equation. The maximization equations is shown as:     
+$$(\theta^{(t+1)}=\arg\max_{\theta}Q(\theta|\theta^{(t)}))$$      
 
 Amelia will create copies of the dataset with new imputed values. The number of copies created will depend on the value for "m" entered. Further analysis is done on each of the "m" datasets so that a variance can be calculated. Distributions are then plotted to compare the original data distribution with the imputed distribution for each of the imputed features to validate the imputation.
 
@@ -181,10 +182,13 @@ Amelia will create copies of the dataset with new imputed values. The number of 
 A correlation and p-value matrix was generated for each feature by using the rcorr() function. The Spearman method was used due to its accuracy in both linear and non linear data. Pairs plots were created for each of the features to access linearity between features. This was done by using the plotly function with a "splom" input.
 
 ## Feature Selection
-Each features importance was calculated using the Boruta package. Boruta is a feature selection function which utilizes random forest classification to determine the importance of each feature. This is done by first creating "shadow features" by copying and randomizing each original feature before appending to the original dataframe. This gives a dataframe twice the size of the original. Following this, boruta builds a Random Forest Classifier on the new feature space which determines their importance using a statistical test, known as the Z-Score.This algorithm checks if the original feature has higher importance than the maximum importance of shadow features, $(Z-Score_{original} > Z-Score_{Max\, shadow})$. If the importance is found to be higher then the feature is recorded as important, otherwise it is recorded as unimportant.
+Each features importance was calculated using the Boruta package. Boruta is a feature selection function which utilizes random forest classification to determine the importance of each feature. This is done by first creating "shadow features" by copying and randomizing each original feature before appending to the original dataframe. This gives a dataframe twice the size of the original. Following this, boruta builds a Random Forest Classifier on the new feature space which determines their importance using a statistical test, known as the Z-Score.This algorithm checks if the original feature has higher importance than the maximum importance of shadow features,    
+$$(Z-Score_{original} > Z-Score_{Max\, shadow})$$      
+If the importance is found to be higher then the feature is recorded as important, otherwise it is recorded as unimportant.
 
 ## Normalization
-To ensure better optimization in the deep learning neural network, the data was pre-processed by normalization. By normalizing all of the data to values between 0 and 1, the deep learning network will be less likely to get trapped in local extrema caused by highly flucuating values. Instead, the algorithm will have shallower extrema and should be able to converge easier. For normalization, the following function was built, $x_{norm}=\left( \frac{x - min(x))}{(max(x) - min(x)} \right)$.
+To ensure better optimization in the deep learning neural network, the data was pre-processed by normalization. By normalizing all of the data to values between 0 and 1, the deep learning network will be less likely to get trapped in local extrema caused by highly flucuating values. Instead, the algorithm will have shallower extrema and should be able to converge easier. For normalization, the following function was built,     
+$$x_{norm}=\left( \frac{x - min(x))}{(max(x) - min(x)} \right)$$           
 
 ## Training and Testing Data
 Using the normalized data, training and testing data was created by taking random samples in a 90:10 split. This higher split was used due to using 20% of the training data as a validation step within the neural network. The output variable (bluegreen algae concentration) was left out of the training and testing data, but each (train/test) output was stored for cross validation.
@@ -194,7 +198,9 @@ Using the normalized data, training and testing data was created by taking rando
 The Deep learning neural network was built using the python wrapped Keras package. The network consisted of an input layer of 10 nodes (layer 1), followed by a hidden layer of 10 nodes (layer 2), a hidden layer of 120 nodes (layer 3), a dropout layer with a 30% rate (layer 4), and finally a layer with a single output node (layer 5). In each layer, the neural network utilizes an activation function which decides whether a neuron should be activated or not by calculating the weighted sum and further adding bias to it. Beginning with layer 2, the activation functions for each layer are relu, relu, and linear. The relu function stands for "rectified linear unit" and is a piecewise linear function that will output the input directly if it is positive, otherwise, it will output zero. The linear function, also known as "no activation" is where the activation is proportional to the input and simply returns the value it was given. The dropout layer is used to approximate training a large number of neural networks with different architectures in parallel. During training, a number of layer outputs are randomly ignored which has the effect of making the layer be treated like a layer with a different number of nodes and connectivity to the prior layer. This process attempts to create situations where network layers co-adapt to correct mistakes from prior layers, in turn making the model more robust.
 
 ### Model Compiling
-The model was compiled using the mean-squared error for both the loss function as well as the metric. The mean-squared error is given by $MSE=\left( \frac{1}{n} \right)\sum_{i=1}^{n}(Y_i-Y'_i)^2$, where n is the number of data points, $Y_i$ is the observed value, and $Y'_i$ is the predicted value. This function measures error in statistical models by using the average squared difference between observed and predicted values which tells how close a regression line is to a set of points. Furthermore, Adam was chosen as the optimizer for the model which is a replacement optimization algorithm for stochastic gradient descent. Adam combines properties of the AdaGrad and RMSProp algorithms to create an algorithm that can handle sparse gradients on noisy data.
+The model was compiled using the mean-squared error for both the loss function as well as the metric. The mean-squared error is given by    
+$$MSE=\left( \frac{1}{n} \right)\sum_{i=1}^{n}(Y_i-Y'_i)^2$$    
+where n is the number of data points, $Y_i$ is the observed value, and $Y'_i$ is the predicted value. This function measures error in statistical models by using the average squared difference between observed and predicted values which tells how close a regression line is to a set of points. Furthermore, Adam was chosen as the optimizer for the model which is a replacement optimization algorithm for stochastic gradient descent. Adam combines properties of the AdaGrad and RMSProp algorithms to create an algorithm that can handle sparse gradients on noisy data.
 
 ### Model Fitting
 After compliation, the model was fitted using the normalized training data input along with the normalized training data output (bluegreen algae concentration) to be used for validation. A 20% validation split was created from this dataset and validated at each of the 200 epochs. 
@@ -284,10 +290,7 @@ From literature, it has been found that high levels of nitrogen, phosphorus, and
 
 
 correlation <- rcorr(as.matrix(algae_sub, method="Spearman"))
-# Extract the correlation coefficients
-correlation$r
-# Extract p-values
-correlation$P
+
 
 res <- cor(algae_sub)
 
@@ -376,7 +379,7 @@ Figure *___* shows the distribution of the predicted and observed bluegreen alga
 ```
 
 
-```{r train and test}
+```{r train and test, message=FALSE, warning=FALSE, echo=FALSE}
  ## Randomly samples the indexes to create training and testing data
  sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
 
@@ -525,6 +528,7 @@ plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=T
 ```
 
 # Conclusion
+To combat the growth of harmful bluegreen algal blooms, multiple water quality parameters are being taken in real time along with field sampling. To further assist in this, a model was trained to predict bluegreen algae concentrations by using the water quality data available from the buoys, as well as the nutrient sampling done in lab. Prior to model training, the data were imputed to remove missing values which 
 
 # References
 
