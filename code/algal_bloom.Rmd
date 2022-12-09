@@ -20,8 +20,8 @@ output:
  * Fall 2022, DSPA (HS650)
  * SID: 1236 
  * UMich E-mail: tarrikq@umich.edu
- * I certify that the following paper represents my own independent work and conforms with the guidelines of academic honesty described in the     UMich student handbook.
- * Remember that students are allowed and encouraged to discuss, on a conceptual level, the problems with your class mates, however, this can      not involve the exchange of actual code, printouts, solutions, e-mails or other explicit electronic or paper handouts.
+ * I certify that the following paper represents my own independent work and conforms with the guidelines of academic honesty described in the UMich student handbook.
+ * Remember that students are allowed and encouraged to discuss, on a conceptual level, the problems with your class mates, however, this can not involve the exchange of actual code, printouts, solutions, e-mails or other explicit electronic or paper handouts.
 
 Outline of problem
  * Include the regular HW project cover page. Start with a one paragraph abstract, followed by an intro/background of the problem, methods, results, discussion/conclusion and acknowledgments, references, in that order. Clearly state the problem you have chosen to investigate. List the resources you used to come up with the project and reference all sources you used to complete the project.
@@ -528,7 +528,9 @@ plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=T
 ```
 
 # Conclusion
-To combat the growth of harmful bluegreen algal blooms, multiple water quality parameters are being taken in real time along with field sampling. To further assist in this, a model was trained to predict bluegreen algae concentrations by using the water quality data available from the buoys, as well as the nutrient sampling done in lab. Prior to model training, the data were imputed to remove missing values which 
+To combat the growth of harmful bluegreen algal blooms, multiple water quality parameters are being taken in real time along with field sampling of aqueous nutrients. To further assist in this, a model was trained to predict bluegreen algae concentrations by using the water quality data available from the buoys, as well as the nutrient sampling done in lab. Prior to model training, the data were imputed with 5 copies to remove missing values, which is reflected in the variance in the predicted values. Using a correlation matrix, it was found that chlorophyll was highly correlated with bluegreen algae concentration, but no other parameters were closely correlated. However, this could be due to other reactions happening with other parameters not shown. To access the importance of each feature, Boruta was used to ensure that the features being input into the model will not negatively impacts the weights and bias. Boruta determined that all of the features were important in determining bluegreen algae concentration. 
+
+The model was created with two hidden layers, on with 10 nodes, and one with 120 nodes and a layer dropout rate of 0.3. The Adam optimizer was used along with the mean squared error as the loss function and metric. Relu was used for the activation function in both hidden layers, with a linear activation function for the output. The model was evaulated using a training dataset created from a 90:10 split along with a 20% validation. Fitting the model to the testing data resulted in a 87% correlation between the predicted and observed values. Since the model was overfitting slightly, bins were created for safety levels, less than 0.6 is safe, between 0.6 and 0.8 is caution, and greater than 0.8 is danger. The confusion matrix determined that the model was in fact overfitting which caused slightly more conservative estimates, which in the case of public safety is the preferred estimate.
 
 # References
 
