@@ -57,6 +57,7 @@ library(finalfit)
 library(deepviz)
 library(magrittr)
 library(corrplot)
+library(gridExtra)
 ```
 
 ```{r python, message=FALSE, warning=FALSE, echo=FALSE}
@@ -237,24 +238,33 @@ algae_data %>% missing_plot(title="Figure 1. Missing observations across each fe
 The data was imputed with five copies of the data. The variance in the imputed data sets was accounted for after running each copy through the model rather than averaging the data sets together beforehand. Table 2 shows one of the imputed data sets. Note that there are no longer missing values and the mean of the imputed features is still roughly the same (within 5%).
 
 ```{r data imputation, message=FALSE, warning=FALSE, echo=FALSE}
-
+## Removes columns that are not needed for the model
 algae_sub <- algae_data %>%
   select(-c("...1","time","latitude","longitude"))
+
+## Renaming columns 
 headers <- c("chlorophyll_flourescence_rfu","oxygen_saturation_fraction","bluegreen_algae_conc_ug.L",
              "bluegreen_algae_conc_rfu","chlorophyll_conc_kg.m3","oxygen_conc_kg.m3","temp_K","elec_cond_s.m",
              "pH","ammonia_mg.L","phosphate_mg.L", "phycocayanin_flour_rfu","nitrate_mg.L")
-
 names(algae_sub) <- headers
-algae_sub <- as.data.frame(algae_sub)
 
+## Convert to dataframe and impute
+algae_sub <- as.data.frame(algae_sub)
 algae_data1 <- amelia(algae_sub, m=5, p2s=0)
 
-algae_sub <- (algae_data1$imputations$imp1+algae_data1$imputations$imp2+algae_data1$imputations$imp3+algae_data1$imputations$imp4+algae_data1$imputations$imp5)/5
-algae_sub <- as.data.frame(sapply(algae_sub, abs))
+## Create a list of each of the imputed dataframes
+algae_list <- list(algae_data1$imputations$imp1, algae_data1$imputations$imp2, algae_data1$imputations$imp3, algae_data1$imputations$imp4, 
+                   algae_data1$imputations$imp5)
 
+## Take absolute value of each of the dataframes
+for (i in 1:length(algae_list)){
+  algae_list[[i]] <- as.data.frame(sapply(algae_list[[i]], abs))
+  
+  
+}
 
-
-kable(summary(algae_sub), "html", caption="Table 2. Imputed Water Quality Summary") %>%
+## Summarize the first dataframe
+kable(summary(algae_list[[1]]), "html", caption="Table 2. Imputed Water Quality Summary") %>%
     kable_styling() %>%
     scroll_box(width = "100%", height = "500px")
 ```
@@ -262,26 +272,52 @@ kable(summary(algae_sub), "html", caption="Table 2. Imputed Water Quality Summar
 To validate the imputation, the density of the imputed data sets and the original data were plotted to assess any differences. Figure 2 shows that for each of the features that required imputation the distribution is almost an exact match. This shows that the imputation was successful so the missing not at random data can still be utilized rather than removed.
 
 ```{r checking imputation, warning=FALSE, message=FALSE, echo=FALSE}
-imp_list <- list(
-  data.frame(initial = algae_data$nitrate, imputed = algae_sub$nitrate_mg.L),
-  data.frame(initial = algae_data$phycocyanin_fluorescence, imputed = algae_sub$phycocayanin_flour_rfu),
-  data.frame(initial = algae_data$phosphate, imputed = algae_sub$phosphate_mg.L),
-  data.frame(initial = algae_data$ammonia, imputed = algae_sub$ammonia_mg.L)
+## Create dataframes to append imputed values to
+nitrate <- data.frame(nitrate = algae_sub$nitrate_mg.L)
+phycoc <- data.frame(phycocayanin = algae_sub$phycocayanin_flour_rfu)
+phosphate <- data.frame(phosphate = algae_sub$phosphate_mg.L)
+ammonia <- data.frame(ammonia = algae_sub$ammonia_mg.L)
 
-)
-
-names <- c("nitrate","phycocyanin","phosphate","ammonia")
-
-plotting <- function(df){
-p<- ggplot(df)+
-  geom_density(aes(x=initial, fill = "Initial"),alpha=0.7)+
-  geom_density(aes(x=imputed, fill = "Imputed"),alpha=0.5)+
-  labs(x="Concentration")
-ggplotly(p)
+## Appending imputed values to each dataframe
+for (df in algae_list){
+  nitrate <- cbind(nitrate, df$nitrate_mg.L)
+  phycoc <- cbind(phycoc, df$phycocayanin_flour_rfu)
+  phosphate <- cbind(phosphate, df$phosphate_mg.L)
+  ammonia <- cbind(ammonia, df$ammonia_mg.L)
 }
 
-lapply(imp_list, plotting)
+## Creating list of dataframes
+imp_list <- list(nitrate, phycoc, phosphate, ammonia)
+
+## Renaming the columns
+for (i in 1:length(imp_list)){
+  colnames(imp_list[[i]]) <- c("observed", "imp1","imp2","imp3","imp4","imp5")
+  }
+
+plot_list <- list()
+
+for (i in 1:length(imp_list)){
+## Plotting each dataframe in the list
+p <- ggplot(imp_list[[i]])+
+  geom_density(aes(x=observed ,fill= "observed" ,alpha=0.7))+
+  geom_density(aes(x=imp1, fill = "Imp1"),alpha=0.2)+
+  geom_density(aes(x=imp2, fill = "Imp2"),alpha=0.2)+
+  geom_density(aes(x=imp3, fill = "Imp3"),alpha=0.2)+
+  geom_density(aes(x=imp4, fill = "Imp4"),alpha=0.2)+
+  geom_density(aes(x=imp5, fill = "Imp5"),alpha=0.2)+
+  xlab("Concentration")+
+  ggtitle(name[i])
+  assign(paste("plot",i,sep="_"), ggplotly(p))
+}
+
+
+fig <- subplot(plot_1, plot_2, plot_3, plot_4, nrows=2)
+ 
+fig
+
 ```
+
+
 
 ## Correlation
 From literature, it has been found that high levels of nitrogen, phosphorus, and oxygen can cause high levels of algal blooms. However, Figure *___* shows that bluegreen algae concentration only has high correlation with chlorophyll. The high correlation with chlorophyll is likely due to it's use by bluegreen algae when performing photosynthesis. Due to this process, we would expect high levels of chlorophyll when there are high levels of bluegreen algae. Regarding the low nutrient correlations, one possibility could be due to algae ingesting different nitrogen and phosphorus compounds than phosphate, nitrate, and ammonia. If these compounds must be reduced to form compounds which can be injested by the algae, then these compounds would not show correlation to algae concentration in their current form.
@@ -305,17 +341,17 @@ flattenCorrMatrix <- function(cormat, pmat) {
 }
 cor_table <- flattenCorrMatrix(correlation$r, correlation$P)
 
-kable(cor_table, "html", caption="Table 1. Initial Water Quality Summary Statistics") %>%
+kable(cor_table, "html", caption="Table 3. Correlation and corresponding P-values") %>%
     kable_styling() %>%
     scroll_box(width = "100%", height = "500px")
 
 corrplot(res, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45)
+         tl.col = "black", tl.srt = 45,mar=c(0,0,1,0), title = "Figure 3. Correlation plot for water quality parameters")
 
 ```
 
 # Pairs Plot
-The linearity of each feature was access in Figure *___*. The linearity is reflective of the correlation plot showing some linearity between algae concentration and chlorophyll concentration, as well as parameters such as oxygen saturation and temperature. 
+The linearity of each feature was access in Figure 4. The linearity is reflective of the correlation plot showing some linearity between algae concentration and chlorophyll concentration, as well as parameters such as oxygen saturation and temperature. 
 ```{r pairs plot, message=FALSE, warning=FALSE, echo=FALSE}
 set.seed(42)
 pair <- algae_sub %>% select(-c("bluegreen_algae_conc_rfu","oxygen_saturation_fraction","chlorophyll_flourescence_rfu"))
@@ -328,14 +364,14 @@ dims <- dplyr::select_if(pair, is.numeric)
 dims <- purrr::map2(dims, names(dims), ~list(values=.x, label=.y))
 plot_ly(type = "splom", dimensions = setNames(dims, NULL), showupperhalf = FALSE, 
         diagonal = list(visible = FALSE) ,textangle = 45) %>% 
-  layout( title='<b> Lake Erie water parameter Pairs-Plots </b>')
+  layout( title='<b> Figure 4. Lake Erie water parameter Pairs-Plots </b>')
 
 ```
 
 
 
 ## Feature Selection
-Due to the low levels of correlation and linearity, Boruta was used to access the importance of each feature in the dataset. Figure *___* shows the results of the Boruta feature selection, which found that all of the features in the dataset are important in the prediction in bluegreen algae growth. However, as found before, chlorophyll is the most important feature in the data set, with ammonia being the least important. Although as stated previously, this may be due to algae using reduced forms of the nutrient compounds. If nutrient data for various forms of each nutrient were available, then the analysis would be more robust.
+Due to the low levels of correlation and linearity, Boruta was used to access the importance of each feature in the dataset. Figure 5 shows the results of the Boruta feature selection, which found that all of the features in the dataset are important in the prediction in bluegreen algae growth. However, as found before, chlorophyll is the most important feature in the data set, with ammonia being the least important. Although as stated previously, this may be due to algae using reduced forms of the nutrient compounds. If nutrient data for various forms of each nutrient were available, then the analysis would be more robust.
 
 ```{r boruta, message=FALSE, warning=FALSE, echo=FALSE}
 algae_bor <- algae_sub %>%
@@ -343,7 +379,7 @@ algae_bor <- algae_sub %>%
 
 boruta <- Boruta(bluegreen_algae_conc_ug.L~.,data=algae_bor)
 
-plot(boruta, xlab = "", xaxt = "n")
+plot(boruta, xlab = "", xaxt = "n", main = "Figure 5. Feature importance")
 k <-lapply(1:ncol(boruta$ImpHistory),function(i)
   boruta$ImpHistory[is.finite(boruta$ImpHistory[,i]),i])
 names(k) <- colnames(boruta$ImpHistory)
@@ -356,114 +392,198 @@ axis(side = 1,las=2,labels = names(Labels),
 
 
 # Deep Learning Neural Network
-With the data normalized, the training and testing split was made (90:10) and the model was compiled with the Adam optimizer and mean squared error loss function. The results in Figure *___* show that the model predicts the testing data with 87% accuracy.Since the model appears to be over fitting, a confusion matrix was generated to determine if the predictions follow a conservative pattern. Three bins were created based on the safety level of the algae concentration, "safe" refers to concentrations under 0.6 ppb, "caution" for concentrations between 0.6-0.8 ppb, and "danger" for concentrations above 0.8 ppb. As shown in Table *___*, the model is skewed to the more conservative estimate which predicts danger or caution when conditions are actually safe. Although this is not ideal, the conservative estimate is favored over the alternative which would predict safe conditions when it is actually dangerous. 
+With the data normalized, the training and testing split was made (90:10) and the model was compiled with the Adam optimizer and mean squared error loss function. The results in Figure 6 show that the model predicts the testing data with 87% accuracy.Since the model appears to be over fitting, a confusion matrix was generated to determine if the predictions follow a conservative pattern. Three bins were created based on the safety level of the algae concentration, "safe" refers to concentrations under 0.6 ppb, "caution" for concentrations between 0.6-0.8 ppb, and "danger" for concentrations above 0.8 ppb. As shown in Table 3, the model is skewed to the more conservative estimate which predicts danger or caution when conditions are actually safe. Although this is not ideal, the conservative estimate is favored over the alternative which would predict safe conditions when it is actually dangerous. 
 
-Figure *___* shows the distribution of the predicted and observed bluegreen algae concentrations. The predicted results have a higher density around the mean and slightly higher concentration values. Further optimization of the model is need to reduce the over fitting, although 87% accuracy is still an acceptable result.
+Figure 7 shows the distribution of the predicted and observed bluegreen algae concentrations. The predicted results have a higher density around the mean and slightly higher concentration values. Further optimization of the model is need to reduce the over fitting, although 87% accuracy is still an acceptable result.
 
 ```{r deep learning, message=FALSE, warning=FALSE, echo=FALSE}
  set.seed(55)
+i<-0
+## Create empty lists to append to in the loop
+norm_list_output <- list()
+norm_list_input <- list()
+
+## Function to normalize all the columns in the dataset
+normalize <- function(x) {
+return((x - min(x)) / (max(x) - min(x)))
+}
+
+for (df in algae_list){
+  i=i+1
  ## take a subset of the original data which does not include the predicted variable
  ## Also take a subset of just the predicted variable
- dl_all_input <- algae_sub %>% select(-c('bluegreen_algae_conc_ug.L','bluegreen_algae_conc_rfu'))
- dl_all_output <- algae_sub %>% select(c('bluegreen_algae_conc_ug.L'))
-
- ## Function to normalize all the columns in the dataset
- normalize <- function(x) {
- return((x - min(x)) / (max(x) - min(x)))
- }
+ dl_all_input <- df %>% select(-c('bluegreen_algae_conc_ug.L','bluegreen_algae_conc_rfu'))
+ dl_all_output <- df %>% select(c('bluegreen_algae_conc_ug.L'))
 
  ## Normalizes both the input and output dataset
  dl_norm_input <-as.data.frame(lapply(dl_all_input, normalize))
  dl_norm_output <-as.data.frame(lapply(dl_all_output, normalize))
  
+ ##Append to a appropriate list
+ norm_list_output[[i]] <- dl_norm_output
+ norm_list_input[[i]] <- dl_norm_input
+
+}
 ```
 
 
 ```{r train and test, message=FALSE, warning=FALSE, echo=FALSE}
- ## Randomly samples the indexes to create training and testing data
- sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
+## Create empty lists for appending
+train_out_list <- list()
+train_in_list <- list()
+test_out_list <- list()
+test_in_list <- list()
 
+set.seed(55)
+## Randomly samples the indexes to create training and testing data
+sub <- sample(nrow(dl_norm_output), floor(nrow(dl_norm_output)*0.90))
+
+## This loops through the output datasets, splits them into training and testing data then converts them to a matrix. finally appends them back to a list
+i<-0
+for (output in norm_list_output){
+  i=i+1
  ## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
- dl_train_input <- dl_norm_input[sub, ]
- dl_train_output <-dl_norm_output[sub, ]
- dl_test_input <- dl_norm_input[-sub, ]
- dl_test_output <-dl_norm_output[-sub, ]
-
+ dl_train_output <- output[sub, ]
+ dl_test_output <- output[-sub, ]
 
  ## Turn all training and testing data into matrices
- dl_train_mat <- as.matrix(dl_train_input)
- dl_test_mat <- as.matrix(dl_test_input)
+
  dl_train_output <- as.matrix(dl_train_output)
  dl_test_output <-as.matrix(dl_test_output)
-
- ## Remove column names
+ 
+ train_out_list[[i]] <- dl_train_output
+ test_out_list[[i]] <- dl_test_output
+}
+i<-0
+## This loops through the input datasets, splits them into training and testing data then converts them to a matrix. finally appends them back to a list
+for (input in norm_list_input){
+  i=i+1
+## Index the input and ouput datasets with the randomly generated indexes to get training and testing inputs/outputs
+ dl_train_input <- input[sub, ]
+ dl_test_input <- input[-sub, ]
+ 
+## Turn all training and testing data into matrices
+ dl_train_mat <- as.matrix(dl_train_input)
+ dl_test_mat <- as.matrix(dl_test_input)
+ 
+## Remove column names
  colnames(dl_train_mat) <- NULL
  colnames(dl_test_mat) <- NULL
-
-
+ 
+ train_in_list[[i]] <- dl_train_mat
+ test_in_list[[i]] <- dl_test_mat
+}
 
 ```
 
 
 
 ```{r model build, message=FALSE, warning=FALSE, echo=FALSE}
-# dl_model <- keras_model_sequential()
-# act <- 'relu'
-# opt <- 'Adam'
-# loss <- 'mse'
-# met <- 'mse'
-# # Add layers to the model
-# set.seed(55)
-# dl_model %>%
-#     layer_dense(units = 10, activation = act, input_shape = length(dl_train_input)) %>%
-#     layer_dense(units = 120, activation = act) %>%
-#     layer_dropout(rate = 0.3) %>%
-#     layer_dense(units = 1, activation = 'linear')
-# 
-# dl_model %>% compile(
-#      loss = loss,
-#      optimizer = opt,
-#      metrics = met
-#  )
-# summary(dl_model)
-# 
-# history <- dl_model %>% fit(
-#   dl_train_mat,
-#   dl_train_output,
-#   validation_split = 0.2,
-#   verbose = 0,
-#   epochs = 200
-# )
-# 
-# plot(history)
-# 
-# 
-# test_results <- dl_model %>% evaluate(
-#   dl_test_mat,
-#   dl_test_output,
-#   verbose = 0
-# )
-# test_results
-# 
-# 
-# test_predictions <- predict(dl_model, dl_test_mat)
-# 
-# df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
-# colnames(df) <- c("prediction","concentration")
-# plot_ly() %>%
-#   add_markers(data=df, x=~prediction, y=~concentration,
-#               name="Data Scatter", type="scatter", mode="markers") %>%
-#   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
-#         line = list(width = 4), name="Ideal Agreement") %>%
-#   layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
-#                       round(cor(df$prediction,df$concentration ), 2)),
-#            xaxis = list(title="NN (hidden=4) Predictions"),
-#            yaxis = list(title="(Normalized) Observed"),
-#            legend = list(orientation = 'h'))
-# 
-# cor(df$prediction, df$concentration)
+df_list <- list()
+plot_list <- list()
+
+dl_model <- keras_model_sequential()
+act <- 'relu'
+opt <- 'Adam'
+loss <- 'mse'
+met <- 'mse'
+# Add layers to the model
+set.seed(55)
+dl_model %>%
+    layer_dense(units = 10, activation = act, input_shape = 11) %>%
+    layer_dense(units = 120, activation = act) %>%
+    layer_dropout(rate = 0.3) %>%
+    layer_dense(units = 1, activation = 'linear')
+
+dl_model %>% compile(
+     loss = loss,
+     optimizer = opt,
+     metrics = met
+ )
+summary(dl_model)
+
+for (i in 1:length(train_in_list)){
+set.seed(55)
+history <- dl_model %>% fit(
+  train_in_list[[i]],
+  train_out_list[[i]],
+  validation_split = 0.2,
+  verbose = 0,
+  epochs = 200
+)
+
+plot(history)
 
 
+test_results <- dl_model %>% evaluate(
+  test_in_list[[i]],
+  test_out_list[[i]],
+  verbose = 0
+)
+
+test_results
+
+
+test_predictions <- predict(dl_model, test_in_list[[i]])
+
+df_list[[i]] <- data.frame(prediction = as.numeric(test_predictions), concentration = test_out_list[[i]])
+colnames(df_list[[i]]) <- c("prediction","concentration")
+
+plot_list[[i]] <- plot_ly() %>%
+  add_markers(data=df_list[[i]], x=~prediction, y=~concentration,
+              name="Data Scatter", type="scatter", mode="markers") %>%
+  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+        line = list(width = 4), name="Ideal Agreement") %>%
+  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+                      round(cor(df_list[[i]]$prediction, df_list[[i]]$concentration ), 2)),
+           xaxis = list(title="NN (hidden=4) Predictions"),
+           yaxis = list(title="(Normalized) Observed"),
+           legend = list(orientation = 'h'))
+
+cor(df_list[[i]]$prediction, df_list[[i]]$concentration)
+
+#save_model_hdf5(dl_model, paste("C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model_",i,".hdf5", sep=""))
+
+}
+
+```
+
+```{r model testing}
+
+for (plot in plot_list){
+print(plot)
+}
+
+```
+
+```{r variance}
+## Combine the prediction data into one dataframe
+var_df <- bind_cols(df_list)
+
+## Take only the predictions
+pred_df <- var_df[ , c(1,3,5,7,9)]
+
+##Take only the observations
+obs_df <- var_df[ , c(2,4,6,8,10)]
+
+## calculate the variance for the predictions
+df <- data.frame(pred_var = apply(pred_df[,-1], 1, var), pred_avg = apply(pred_df[,-1], 1, mean), 
+                 obs_var =apply(obs_df[,-1], 1, var), obs_avg =apply(obs_df[,-1], 1, mean))
+
+plot_ly() %>%
+  add_markers(data=df, x=~pred_avg, y=~obs_avg, 
+              name="Data Scatter", type="scatter", mode="markers",size=2,
+              error_y = ~list(array = obs_var,
+                        color = 'red'),
+              error_x = ~list(array = pred_var,
+                        color = 'green')) %>%
+  add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
+        line = list(width = 4), name="Ideal Agreement") %>%
+  layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
+                      round(cor(df$pred_avg,df$obs_avg ), 2)),
+           xaxis = list(title="(Normalized) NN Predictions"),
+           yaxis = list(title="(Normalized) Observed"),
+           legend = list(orientation = 'h'))
 ```
 
 ```{r model save, message=FALSE, warning=FALSE, echo=FALSE}
@@ -473,12 +593,13 @@ Figure *___* shows the distribution of the predicted and observed bluegreen alga
 
 
 ```{r NN , message=FALSE, warning=FALSE, echo=FALSE}
+model_list <- list.files(path='C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/', pattern=".hdf5")
 model = load_model_hdf5('C:/Users/Tarri/Desktop/portfolio_projects/algal_bloom_dashboard/code/nn_model.hdf5')
 ```
 
 ```{r , message=FALSE, warning=FALSE, echo=FALSE}
 
-test_results <- model %>% evaluate(
+test_results <- dl_model %>% evaluate(
   dl_test_mat,
   dl_test_output,
   verbose = 0
@@ -490,13 +611,17 @@ test_predictions <- predict(model, dl_test_mat)
 
 df <- data.frame(prediction = as.numeric(test_predictions), concentration = dl_test_output)
 
-p1 <- plot_ly() %>%
-  add_markers(data=df, x=~prediction, y=~concentration, 
-              name="Data Scatter", type="scatter", mode="markers",size=2) %>%
+plot_ly() %>%
+  add_markers(data=df, x=~pred_avg, y=~obs_avg, 
+              name="Data Scatter", type="scatter", mode="markers",size=2,
+              error_y = ~list(array = obs_var,
+                        color = 'red'),
+              error_x = ~list(array = pred_var,
+                        color = 'green')) %>%
   add_trace(x = c(0,1), y = c(0,1), type="scatter", mode="lines",
         line = list(width = 4), name="Ideal Agreement") %>%
   layout(title=paste0('Scatterplot (Normalized) Observed vs. Predicted Values, Cor(Obs,Pred)=',
-                      round(cor(df$prediction,df$concentration ), 2)),
+                      round(cor(df$pred_avg,df$obs_avg ), 2)),
            xaxis = list(title="(Normalized) NN Predictions"),
            yaxis = list(title="(Normalized) Observed"),
            legend = list(orientation = 'h'))
@@ -521,7 +646,7 @@ p <- ggplot(pred) +
 
 table(pred[3:4])
 
-p2 <- ggplotly(p)
+ggplotly(p)
 
 plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
@@ -532,5 +657,20 @@ To combat the growth of harmful bluegreen algal blooms, multiple water quality p
 
 The model was created with two hidden layers, on with 10 nodes, and one with 120 nodes and a layer dropout rate of 0.3. The Adam optimizer was used along with the mean squared error as the loss function and metric. Relu was used for the activation function in both hidden layers, with a linear activation function for the output. The model was evaulated using a training dataset created from a 90:10 split along with a 20% validation. Fitting the model to the testing data resulted in a 87% correlation between the predicted and observed values. Since the model was overfitting slightly, bins were created for safety levels, less than 0.6 is safe, between 0.6 and 0.8 is caution, and greater than 0.8 is danger. The confusion matrix determined that the model was in fact overfitting which caused slightly more conservative estimates, which in the case of public safety is the preferred estimate.
 
+# Acknowledgements
+I would like to thank Professor Dinov for his guidance throughout this project. I would also like to thank the labs who allowed their data to be open source and easily available.
+
 # References
+Brownlee, J. (2019, Jan 09). A Gentle Introduction to the Rectified Linear Unit (ReLU). Retrieved from Machine Learning Mastery: https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/
+
+Dean, S. (2022, August 11). Harmful algal blooms in Lake Erie expected to be smaller this year, says NOAA. Retrieved from Michigan.gov: https://www.michigan.gov/egle/newsroom/mi-environment/2022/08/11/harmful-algal-blooms-in-lake-erie-expected-to-be-smaller-this-year-says-noaa#:~:text=In%20Lake%20Erie%2C%20several%20factors,aren't%20quite%20understood%20yet.
+
+Morais, M. G. (2018, Geb 1). Phycocyanin from Microalgae: Properties, Extraction and Purification, with Some Recent Applications. Retrieved from https://www.liebertpub.com/doi/10.1089/ind.2017.0009#:~:text=Phycocyanin%20is%20a%20non%2Dtoxic,%2C%20hepatoprotective%2C%20and%20neuroprotective%20effects.
+
+Robert A. Andersen, R. A. (n.d.). Photosynthesis and light-absorbing pigments. Retrieved from Britannica: https://www.britannica.com/science/algae/Photosynthesis-and-light-absorbing-pigments
+
+Seagull. (n.d.). Retrieved from Seagull: https://seagull.glos.org/map?coords=-83.4103060%2C41.6266502%2C10&lake=Erie&tags=platforms%3Abuoy%2Cweather%3A%2Cwater%3A%2Cfavorite%3A&platform=RBS-TOL
+
+Ting-ting Wu, G.-f. L.-q.-y. (2015, Jan). Impacts of algal blooms accumulation on physiological ecology of water hyacinth. Retrieved from National Library of Midicine: https://pubmed.ncbi.nlm.nih.gov/25898654/
+
 
