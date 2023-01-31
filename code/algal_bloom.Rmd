@@ -1,6 +1,5 @@
 ---
-title: "Final Report"
-subtitle: "<h2><u>Data Science and Predictive Analytics (HS650)</u></h2>"
+title: "Prediction of Harmful Algal Bloom Concentration Using Deep Learning Neural Network"
 author: "<h3>Tarrik Quneibi</h3>"
 date: "`r format(Sys.time(), '%B %Y')`"
 output:
@@ -17,11 +16,6 @@ output:
     self_contained: yes
 ---
 
- * Fall 2022, DSPA (HS650)
- * SID: 1236 
- * UMich E-mail: tarrikq@umich.edu
- * I certify that the following paper represents my own independent work and conforms with the guidelines of academic honesty described in the UMich student handbook.
- * Remember that students are allowed and encouraged to discuss, on a conceptual level, the problems with your class mates, however, this can not involve the exchange of actual code, printouts, solutions, e-mails or other explicit electronic or paper handouts.
 
 
 ```{r setup, include=FALSE}
@@ -669,9 +663,10 @@ plot_ly() %>%
            xaxis = list(title="(Normalized) NN Predictions"),
            yaxis = list(title="(Normalized) Observed"),
            legend = list(orientation = 'h'))
+nn_cor <- (round(cor(df$pred_avg,df$obs_avg ), 2))*100
 ```
 
-As shown in the confusion matrix output, the model is skewed to the more conservative estimate which predicts danger or caution when conditions are actually safe. Although this is not ideal, the conservative estimate is favored over the alternative which would predict safe conditions when it is actually dangerous. Figure 8 shows the distribution of the predicted and observed bluegreen algae concentrations. The predicted results have a higher density around the mean and slightly higher concentration values. Further optimization of the model is need to reduce the over fitting, although around 87% accuracy is still an acceptable result. Future optimization and more data is needed on the deep learning neural network to reach higher accuracy results.
+As shown in the confusion matrix output, the model is skewed to the more conservative estimate which predicts danger or caution when conditions are actually safe. Although this is not ideal, the conservative estimate is favored over the alternative which would predict safe conditions when it is actually dangerous. Figure 8 shows the distribution of the predicted and observed bluegreen algae concentrations. The predicted results have a higher density around the mean and slightly higher concentration values. Further optimization of the model is need to reduce the over fitting, although around `r nn_cor`% accuracy is still an acceptable result. Future optimization and more data is needed on the deep learning neural network to reach higher accuracy results.
 
 ```{r categorical, message=FALSE, warning=FALSE, echo=FALSE}
 ## Function to return concentration to its pre normalized value
